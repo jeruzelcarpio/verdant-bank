@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:verdantbank/transactions.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
@@ -10,6 +11,8 @@ void main() {
 }
 
 class VerdantBankApp extends StatelessWidget {
+  const VerdantBankApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,6 +26,8 @@ class VerdantBankApp extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
   void _handleButtonPress(String action, BuildContext context) {
     print('$action button pressed');
 
@@ -62,6 +67,13 @@ class HomePage extends StatelessWidget {
       );
     }
 
+    if (action == 'Transactions') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => TransactionsPage()),
+      );
+    }
+
   }
 
   @override
@@ -98,6 +110,11 @@ class HomePage extends StatelessWidget {
             ElevatedButton(
               onPressed: () => _handleButtonPress('Savings', context),
               child: Text('Savings'),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _handleButtonPress('Transactions', context),
+              child: Text('Transactions'),
             ),
           ],
         ),
