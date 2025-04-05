@@ -21,7 +21,7 @@ class CardIcon extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      height: 200,
+      height: 185,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(

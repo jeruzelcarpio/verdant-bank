@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
 import 'invest.dart';
 import 'savings.dart';
+import 'package:verdantbank/components/card.dart';
+import 'package:verdantbank/components/menu_button.dart';
+import 'account.dart';
 
+
+Account userAccount = Account(
+  accFirstName: "Jeff",
+  accLastName: "Mendez",
+  accNumber: "1013 456 1234",
+  accBalance: 50000.00,
+);
 void main() {
   runApp(VerdantBankApp());
 }
@@ -79,43 +91,64 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        backgroundColor: AppColors.darkGreen,
       appBar: AppBar(
         title: Text('VerdantBank'),
+        backgroundColor: AppColors.darkGreen,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(40.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Transfer', context),
-              child: Text('Transfer'),
+            CardIcon(savingAccountNum: userAccount.accNumber, accountBalance: userAccount.accBalance),
+            SizedBox(height: 70,),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.start,
+              children: [
+                MenuButton(
+                  bgColor: AppColors.lighterGreen,
+                  buttonName: "Transfer",
+                  icon: FontAwesomeIcons.creditCard,
+                  onPressColor: AppColors.lightGreen,
+                  onPressed:() => _handleButtonPress('Transfer', context) ,
+                ),
+
+                MenuButton(
+                  bgColor: AppColors.lighterGreen,
+                  buttonName: "Pay Bills",
+                  icon: FontAwesomeIcons.creditCard,
+                  onPressColor: AppColors.lightGreen,
+                  onPressed:() => _handleButtonPress('Pay Bills', context) ,
+                ),
+
+                MenuButton(
+                  bgColor: AppColors.lighterGreen,
+                  buttonName: "Buy Load",
+                  icon: FontAwesomeIcons.creditCard,
+                  onPressColor: AppColors.lightGreen,
+                  onPressed:() => _handleButtonPress('Buy Load', context) ,
+                ),
+
+                MenuButton(
+                  bgColor: AppColors.lighterGreen,
+                  buttonName: "Invest",
+                  icon: FontAwesomeIcons.creditCard,
+                  onPressColor: AppColors.lightGreen,
+                  onPressed:() => _handleButtonPress('Invest', context) ,
+                ),
+                MenuButton(
+                  bgColor: AppColors.lighterGreen,
+                  buttonName: "Savings",
+                  icon: FontAwesomeIcons.creditCard,
+                  onPressColor: AppColors.lightGreen,
+                  onPressed:() => _handleButtonPress('Savings', context) ,
+                ),
+              ],
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Pay Bills', context),
-              child: Text('Pay Bills'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Buy Load', context),
-              child: Text('Buy Load'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Invest', context),
-              child: Text('Invest'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Savings', context),
-              child: Text('Savingsssssss'),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _handleButtonPress('Transactions', context),
-              child: Text('Transactions'),
-            ),
+
           ],
         ),
       ),
