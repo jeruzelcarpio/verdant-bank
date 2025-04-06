@@ -3,29 +3,30 @@ import 'package:flutter/services.dart';
 import 'package:verdantbank/account.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
+import 'package:verdantbank/components/slide_to_confirm.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
 
 class TransferPage extends StatefulWidget {
+  final Account account;
+  final VoidCallback onUpdate;
+
+  const TransferPage({Key? key, required this.account, required this.onUpdate})
+      : super(key: key);
+
   @override
   _TransferPageState createState() => _TransferPageState();
 }
 
 class _TransferPageState extends State<TransferPage> {
-  Account userAccount = Account(
-    accFirstName: "Jeff",
-    accLastName: "Mendez",
-    accNumber: "1013 456 1234",
-    accBalance: 50000.00,
-  );
-
   void _openTransferWidget(String transferType) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TransferWidget(
-          account: userAccount,
+          account: widget.account,
           transferType: transferType,
+          onUpdate: widget.onUpdate,
         ),
       ),
     );
@@ -46,24 +47,23 @@ class _TransferPageState extends State<TransferPage> {
         backgroundColor: AppColors.darkGreen,
         centerTitle: true,
       ),
-      body:
-      Padding(padding: EdgeInsets.all(40),
-        child:
-          Column(
-            children: [
-              Row(
-               children: [
-                    Text(
-                    "TRANSFER TO",
-                    style: TextStyle(
-                      color: AppColors.yellowGold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  )
-               ],
-              ),
-            SizedBox(height: 20,),
+      body: Padding(
+        padding: EdgeInsets.all(40),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Text(
+                  "TRANSFER TO",
+                  style: TextStyle(
+                    color: AppColors.yellowGold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              ],
+            ),
+            SizedBox(height: 20),
             Row(
               children: [
                 MenuButton(
@@ -74,7 +74,7 @@ class _TransferPageState extends State<TransferPage> {
                   onPressed: () => _openTransferWidget("Other Accounts"),
                 ),
                 SizedBox(width: 16),
-                  MenuButton(
+                MenuButton(
                   bgColor: AppColors.lighterGreen,
                   buttonName: "Other Banks",
                   icon: FontAwesomeIcons.buildingColumns,
@@ -96,7 +96,6 @@ class _TransferPageState extends State<TransferPage> {
           ],
         ),
       ),
-
     );
   }
 }
@@ -104,11 +103,13 @@ class _TransferPageState extends State<TransferPage> {
 class TransferWidget extends StatefulWidget {
   final Account account;
   final String transferType;
+  final VoidCallback onUpdate;
 
   const TransferWidget({
     Key? key,
     required this.account,
     required this.transferType,
+    required this.onUpdate,
   }) : super(key: key);
 
   @override
@@ -121,8 +122,19 @@ class _TransferWidgetState extends State<TransferWidget> {
   final TextEditingController remarksController = TextEditingController();
 
   String? _numberErrorText;
+  bool _showConfirmationSlider = false;
+  double _sliderValue = 0.0;
 
-  void _transfer() {
+  // Method to show the confirmation slider
+  void _showSlideToConfirm() {
+    setState(() {
+      _showConfirmationSlider = true;
+      _sliderValue = 0.0; // Reset slider value when showing
+    });
+  }
+
+  // Execute transfer transaction
+  void _executeTransferTransaction() {
     double? amount = double.tryParse(amountController.text);
     if (amount == null || amount <= 0) {
       _showErrorDialog("Please enter a valid amount.");
@@ -133,20 +145,21 @@ class _TransferWidgetState extends State<TransferWidget> {
       return;
     }
 
-    // Navigate to confirmation page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TransferConfirmationPage(
-          transferType: widget.transferType,
-          accountNumber: accountNumberController.text,
-          amount: amount,
-          remarks: remarksController.text,
-        ),
-      ),
-    );
+    // Deduct the amount from the account balance
+    setState(() {
+      widget.account.accBalance -= amount;
+      _sliderValue = 0.0;
+      _showConfirmationSlider = false;
+
+      // Call the onUpdate callback to update the main page
+      widget.onUpdate();
+    });
+
+    // Navigate back to the previous page
+    Navigator.pop(context);
   }
 
+  // Helper method to show error dialog
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -177,234 +190,189 @@ class _TransferWidgetState extends State<TransferWidget> {
         backgroundColor: AppColors.darkGreen,
         centerTitle: true,
       ),
-      body: Padding(
-        padding: EdgeInsets.all(40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: Stack(
           children: [
-            Text(
-              'SOURCE',
-              style: TextStyle(
-                color: AppColors.yellowGold,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            CardIcon(
-              savingAccountNum: widget.account.accNumber,
-              accountBalance: widget.account.accBalance,
-            ),
-            SizedBox(height: 16),
-            
-            
-            
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: AppColors.green,
-              ),
-              child:
-              Padding(padding: EdgeInsets.all(20),
-                  child:
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: EdgeInsets.all(40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SOURCE',
+                    style: TextStyle(
+                      color: AppColors.yellowGold,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  CardIcon(
+                    savingAccountNum: widget.account.accNumber,
+                    accountBalance: widget.account.accBalance,
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: AppColors.green,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'DESTINATION',
+                            style: TextStyle(
+                              color: AppColors.yellowGold,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(height: 30),
+                          TextField(
+                            controller: accountNumberController,
+                            style: TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              contentPadding: EdgeInsets.all(20),
+                              hintText: 'Account No.',
+                              hintStyle: TextStyle(color: AppColors.lighterGreen),
+                              errorText: _numberErrorText,
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.green,
+                            ),
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                            ],
+                          ),
+                          SizedBox(height: 30),
+                          TextField(
+                            controller: amountController,
+                            style: TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              contentPadding: EdgeInsets.all(20),
+                              hintText: 'Amount',
+                              hintStyle: TextStyle(color: AppColors.lighterGreen),
+                              errorText: _numberErrorText,
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(30),
+                                borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                              ),
+                              filled: true,
+                              fillColor: AppColors.green,
+                            ),
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                            ],
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'Remarks',
+                            style: TextStyle(
+                              color: AppColors.lighterGreen,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          SizedBox(
+                            height: 88,
+                            child: TextField(
+                              controller: remarksController,
+                              style: TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                counterText: "",
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                ),
+                                filled: true,
+                                fillColor: AppColors.green,
+                              ),
+                              keyboardType: TextInputType.multiline,
+                              maxLines: 4,
+                              maxLength: 256,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Row(
                     children: [
-                      Text(
-                        'DESTINATION',
-                        style: TextStyle(
-                          color: AppColors.yellowGold,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 30),
-                      TextField(
-                        controller: accountNumberController,
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.all(20),
-                          hintText: 'Account No.',
-                          hintStyle: TextStyle(color: AppColors.lighterGreen),
-                          errorText: _numberErrorText,
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.darkGreen,
+                            side: BorderSide(color: AppColors.lighterGreen),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.green,
-                        ),
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                        ],
-                      ),
-                      SizedBox(height: 30),
-
-                      TextField(
-                        controller: amountController,
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.all(20),
-                          hintText: 'Amount',
-                          hintStyle: TextStyle(color: AppColors.lighterGreen),
-                          errorText: _numberErrorText,
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.green,
-                        ),
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Remarks',
-                        style: TextStyle(
-                          color: AppColors.lighterGreen,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      SizedBox(
-                        height: 88, // Makes the field visually larger
-                        child: TextField(
-                          controller: remarksController,
-                          style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            counterText: "", // Hides the default character counter
-                            errorText: _numberErrorText,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                          child: Text(
+                            "Back",
+                            style: TextStyle(
+                              color: AppColors.lighterGreen,
+                              fontSize: 14,
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.green,
                           ),
-                          keyboardType: TextInputType.multiline,
-                          maxLines: 4,
-                          maxLength: 256,
                         ),
                       ),
-
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _showSlideToConfirm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.lighterGreen,
+                          ),
+                          child: Text(
+                            "Transfer",
+                            style: TextStyle(
+                              color: AppColors.darkGreen,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                  )
-              ),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context), // Navigates back
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.darkGreen,
-                      side: BorderSide(color: AppColors.lighterGreen), // Border color
-                    ),
-                    child: Text(
-                      "Back",
-                      style: TextStyle(
-                        color: AppColors.lighterGreen,
-                        fontSize: 14,
-                      ),
-                    ),
                   ),
-                ),
-                SizedBox(width: 16), // Adds spacing between the buttons
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _transfer, // Calls the transfer function
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.lighterGreen,
-
-                    ),
-                    child: Text(
-                      "Transfer",
-                      style: TextStyle(
-                        color: AppColors.darkGreen,
-                        fontSize: 14,// Ensures text is visible on the green button
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-
-
-
-
-
-
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class TransferConfirmationPage extends StatelessWidget {
-  final String transferType;
-  final String accountNumber;
-  final double amount;
-  final String remarks;
-
-  const TransferConfirmationPage({
-    Key? key,
-    required this.transferType,
-    required this.accountNumber,
-    required this.amount,
-    required this.remarks,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Transfer Confirmation"),
-        backgroundColor: AppColors.darkGreen,
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Transfer Details",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.yellowGold,
+                ],
               ),
             ),
-            SizedBox(height: 16),
-            Text("Transfer Type: $transferType"),
-            Text("Account Number: $accountNumber"),
-            Text("Amount: \$${amount.toStringAsFixed(2)}"),
-            Text("Remarks: $remarks"),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.lightGreen,
+            if (_showConfirmationSlider)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SlideToConfirm(
+                  sliderValue: _sliderValue,
+                  onChanged: (value) {
+                    setState(() {
+                      _sliderValue = value;
+                    });
+                    if (value >= 0.99) {
+                      _executeTransferTransaction();
+                    }
+                  },
+                ),
               ),
-              child: Text("Done"),
-            ),
           ],
         ),
       ),
