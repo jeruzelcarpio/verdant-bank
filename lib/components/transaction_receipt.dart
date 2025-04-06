@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 class TransactionReceipt extends StatelessWidget {
   final String transactionId;
   final DateTime transactionDateTime;
-  final String? selectedNetwork;
-  final String mobileNumber;
   final String amountText;
+  final String? selectedNetwork; // Optional
+  final String? mobileNumber; // Optional
+  final String? merchant; // Optional
+  final String? destinationAccount; // Optional
+  final String? sourceAccount; // Optional
   final VoidCallback onSave;
   final VoidCallback onDone;
 
@@ -13,9 +16,12 @@ class TransactionReceipt extends StatelessWidget {
     Key? key,
     required this.transactionId,
     required this.transactionDateTime,
-    required this.selectedNetwork,
-    required this.mobileNumber,
     required this.amountText,
+    this.selectedNetwork, // Optional
+    this.mobileNumber, // Optional
+    this.merchant, // Optional
+    this.destinationAccount, // Optional
+    this.sourceAccount, // Optional
     required this.onSave,
     required this.onDone,
   }) : super(key: key);
@@ -50,11 +56,16 @@ class TransactionReceipt extends StatelessWidget {
               ),
               SizedBox(height: 30),
               _receiptInfoRow("Transaction ID", transactionId),
-              _receiptInfoRow("Date & Time", 
-                "${transactionDateTime.day}/${transactionDateTime.month}/${transactionDateTime.year} ${transactionDateTime.hour}:${transactionDateTime.minute.toString().padLeft(2, '0')}"),
-              _receiptInfoRow("Network", selectedNetwork ?? ""),
-              _receiptInfoRow("Mobile Number", mobileNumber),
+              _receiptInfoRow(
+                "Date & Time",
+                "${transactionDateTime.day}/${transactionDateTime.month}/${transactionDateTime.year} ${transactionDateTime.hour}:${transactionDateTime.minute.toString().padLeft(2, '0')}",
+              ),
               _receiptInfoRow("Amount", amountText),
+              if (selectedNetwork != null) _receiptInfoRow("Network", selectedNetwork!),
+              if (mobileNumber != null) _receiptInfoRow("Mobile Number", mobileNumber!),
+              if (merchant != null) _receiptInfoRow("Merchant", merchant!),
+              if (sourceAccount != null) _receiptInfoRow("Source Account", sourceAccount!),
+              if (destinationAccount != null) _receiptInfoRow("Destination Account", destinationAccount!),
               SizedBox(height: 20),
               Container(
                 padding: EdgeInsets.all(12),

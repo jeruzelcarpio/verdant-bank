@@ -4,6 +4,8 @@ import 'package:verdantbank/account.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/slide_to_confirm.dart';
+import 'package:verdantbank/components/transaction_receipt.dart';
+import 'package:verdantbank/components/authentication_otp.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
 
@@ -155,8 +157,55 @@ class _TransferWidgetState extends State<TransferWidget> {
       widget.onUpdate();
     });
 
-    // Navigate back to the previous page
-    Navigator.pop(context);
+    // Navigate to OTP confirmation screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OTPConfirmationScreen(
+          phoneNumber: widget.account.accPhoneNum,
+          otpCode: "123456", // Example OTP code
+          onConfirm: () => _navigateToReceipt(amount),
+          onResend: () {
+            print("OTP Resent");
+          },
+        ),
+      ),
+    );
+  }
+
+  // Navigate to the transaction receipt screen
+  void _navigateToReceipt(double amount) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SafeArea(
+          child: Scaffold(
+            backgroundColor: AppColors.darkGreen,
+            body: SingleChildScrollView( // Allows scrolling if content overflows
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: TransactionReceipt(
+                  transactionId: "TR-${DateTime.now().millisecondsSinceEpoch}",
+                  transactionDateTime: DateTime.now(),
+                  amountText: "₱${amount.toStringAsFixed(2)}",
+                  selectedNetwork: null,
+                  mobileNumber: null,
+                  merchant: null,
+                  sourceAccount: widget.account.accNumber,
+                  destinationAccount: accountNumberController.text,
+                  onSave: () {
+                    print("Receipt saved!");
+                  },
+                  onDone: () {
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // Helper method to show error dialog

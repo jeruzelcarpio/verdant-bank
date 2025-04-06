@@ -16,6 +16,7 @@ Account userAccount = Account(
   accLastName: "Mendez",
   accNumber: "1553 456 1234",
   accBalance: 50000.00,
+  accPhoneNum: "09458746633"
 );
 
 void main() {
@@ -107,15 +108,60 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
-      appBar: AppBar(
-        title: Text('VerdantBank'),
-        backgroundColor: AppColors.darkGreen,
-      ),
-      body: Padding(
+      body:
+      Padding(
         padding: const EdgeInsets.all(40.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      FontAwesomeIcons.creditCard,
+                      size: 16,
+                      color: AppColors.milk,
+                    ),
+                    SizedBox(width: 12,),
+                    Text(
+                      "Welcome, ${userAccount.accFirstName}!",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.milk,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+
+                Row(
+                  children: [
+                    Padding(padding: EdgeInsets.all(10),
+                    child:
+                      Icon(
+                        FontAwesomeIcons.user,
+                        size: 16,
+                        color: AppColors.lighterGreen,
+                      ),
+                    ),
+                    Padding(padding: EdgeInsets.all(10),
+                      child:
+                      Icon(
+                        FontAwesomeIcons.bell,
+                        size: 16,
+                        color: AppColors.lighterGreen,
+                      ),
+                    ),
+
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 38,),
+
             CardIcon(
               savingAccountNum: userAccount.accNumber,
               accountBalance: userAccount.accBalance,
