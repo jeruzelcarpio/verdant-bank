@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class SlideToConfirm extends StatelessWidget {
+class SlideToConfirm extends StatefulWidget {
   final double sliderValue;
   final ValueChanged<double> onChanged;
 
@@ -9,6 +9,43 @@ class SlideToConfirm extends StatelessWidget {
     required this.sliderValue,
     required this.onChanged,
   }) : super(key: key);
+
+  @override
+  _SlideToConfirmState createState() => _SlideToConfirmState();
+}
+
+class _SlideToConfirmState extends State<SlideToConfirm> {
+  late double _internalValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _internalValue = widget.sliderValue;
+  }
+
+  @override
+  void didUpdateWidget(covariant SlideToConfirm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sliderValue != widget.sliderValue) {
+      _internalValue = widget.sliderValue;
+    }
+  }
+
+  void _handleSliderChange(double value) {
+    setState(() {
+      _internalValue = value;
+    });
+    widget.onChanged(value);
+  }
+
+  void _handleSliderEnd(double value) {
+    if (value < 0.95) {
+      setState(() {
+        _internalValue = 0.0;
+      });
+      widget.onChanged(0.0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,8 +91,9 @@ class SlideToConfirm extends StatelessWidget {
                 thumbShape: _CustomThumbShape(),
               ),
               child: Slider(
-                value: sliderValue,
-                onChanged: onChanged,
+                value: _internalValue,
+                onChanged: _handleSliderChange,
+                onChangeEnd: _handleSliderEnd,
               ),
             ),
           ),
@@ -64,6 +102,7 @@ class SlideToConfirm extends StatelessWidget {
     );
   }
 }
+
 
 // Custom thumb shape for the slider
 class _CustomThumbShape extends SliderComponentShape {
