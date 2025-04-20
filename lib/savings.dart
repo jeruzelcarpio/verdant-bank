@@ -550,11 +550,17 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const Icon(Icons.arrow_back, color: Color(0xFFB8FF5C)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFB8FF5C)),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text('ALKANSYA', style: TextStyle(color: Color(0xFFB8FF5C))),
+        title: const Text(
+          'ALKANSYA',
+          style: TextStyle(color: Color(0xFFB8FF5C)),
+        ),
         actions: [
           const Icon(Icons.receipt_long, color: Color(0xFFE5F0C0)),
           const SizedBox(width: 12),
