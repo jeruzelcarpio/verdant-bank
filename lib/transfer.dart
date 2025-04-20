@@ -446,7 +446,6 @@ class _TransferWidgetState extends State<TransferWidget> {
             ],
           ),
         ),
-
       ),
     );
   }
