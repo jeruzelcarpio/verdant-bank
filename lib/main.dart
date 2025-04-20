@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
+import 'alixScreens/onboarding_screen.dart';
+import 'alixScreens/signIn_screen.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
@@ -10,6 +12,7 @@ import 'savings.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'account.dart';
+import 'alixScreens/login_screen.dart';
 
 Account userAccount = Account(
   accFirstName: "Jeff",
@@ -33,7 +36,7 @@ class VerdantBankApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: HomePage(),
+      home: const SignInScreen(),
     );
   }
 }
