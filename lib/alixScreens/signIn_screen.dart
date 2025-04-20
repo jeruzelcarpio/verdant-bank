@@ -3,6 +3,7 @@ import 'package:verdantbank/alixScreens/login_screen.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/models/slide.dart';
 import 'login_screen.dart';
+import 'package:verdantbank/alixScreens/create_account_welcome.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -25,6 +26,11 @@ class _SignInScreenState extends State<SignInScreen> {
     ),
     const Slide(
       image: 'assets/slideScreen2_img.png',
+      title: 'Bank\nAnytime, Anywhere',
+      subtitle: 'Seamless transactions at your fingertips—\nwhenever you need them.',
+    ),
+    const Slide(
+      image: 'assets/slideScreen3_img.png',
       title: 'Bank\nAnytime, Anywhere',
       subtitle: 'Seamless transactions at your fingertips—\nwhenever you need them.',
     ),
@@ -141,7 +147,12 @@ class _SignInScreenState extends State<SignInScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.lighterGreen,
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const CreateAccountWelcome()),
+                          );
+                        },
                         child: const Text('Create An Account'),
                       ),
                     ),
