@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
+import 'alixScreens/onboarding_screen.dart';
+import 'alixScreens/signIn_screen.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
@@ -10,6 +12,7 @@ import 'savings.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'account.dart';
+import 'alixScreens/login_screen.dart';
 
 Account userAccount = Account(
   accFirstName: "Jeff",
@@ -23,7 +26,7 @@ Account userAccount = Account(
 
 
 void main() {
-  runApp(VerdantBankApp());
+  runApp(const MyApp());
   userAccount.addTransaction(
     Transaction(
       type: "Sent To",
@@ -86,8 +89,9 @@ void main() {
 
 }
 
-class VerdantBankApp extends StatelessWidget {
-  const VerdantBankApp({super.key});
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +100,21 @@ class VerdantBankApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.green,
       ),
-      home: HomePage(),
+      home: const SignInScreen(), // Initial screen
+      onGenerateRoute: (settings) {
+        if (settings.name == '/home') {
+          return MaterialPageRoute(
+            builder: (context) => const HomePage(),
+            settings: const RouteSettings(name: '/home'),
+          );
+        }
+        return null;
+      },
     );
   }
 }
+
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
