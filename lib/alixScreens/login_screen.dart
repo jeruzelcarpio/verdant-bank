@@ -120,9 +120,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: () {
-                  Navigator.pushReplacement(
+                  // In SignInScreen
+                  Navigator.pushNamedAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomePage()),
+                    '/home',
+                        (route) => false, // Removes all previous routes
                   );
                 },
                 child: const Text(

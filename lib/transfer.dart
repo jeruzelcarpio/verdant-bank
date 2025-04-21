@@ -199,7 +199,7 @@ class _TransferWidgetState extends State<TransferWidget> {
         builder: (context) => SafeArea(
           child: Scaffold(
             backgroundColor: AppColors.darkGreen,
-            body: SingleChildScrollView( // Allows scrolling if content overflows
+            body: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: TransactionReceipt(
@@ -215,7 +215,12 @@ class _TransferWidgetState extends State<TransferWidget> {
                     print("Receipt saved!");
                   },
                   onDone: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                    // Clear navigation stack and return to HomePage
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/home',
+                          (route) => false,
+                    );
                   },
                 ),
               ),
@@ -446,7 +451,6 @@ class _TransferWidgetState extends State<TransferWidget> {
             ],
           ),
         ),
-
       ),
     );
   }
