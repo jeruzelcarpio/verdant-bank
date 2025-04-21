@@ -50,17 +50,21 @@ class _MenuButtonState extends State<MenuButton> {
           children: [
             Icon(
               widget.icon,
-              color: widget.isActive ? Colors.black : Colors.white, // Adjust color for inactive
-              size: 16,
+              color: widget.isActive ? Colors.black : Colors.white,
+              size: 24,
             ),
-            SizedBox(height: 10),
-            Text(
-              widget.buttonName,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: widget.isActive ? Colors.black : Colors.white, // Adjust color for inactive
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+            SizedBox(height: 6),
+            Flexible(
+              child: Text(
+                widget.buttonName,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis, // trims overflow with "..."
+                maxLines: 2,
+                style: TextStyle(
+                  color: widget.isActive ? Colors.black : Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

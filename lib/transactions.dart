@@ -1,10 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:verdantbank/theme/colors.dart';
+import 'account.dart'; // Import your Account class with Transaction model
+import 'package:intl/intl.dart';  // Add this import
 
+class TransactionsPage extends StatelessWidget {
+  final Account account;
 
+  TransactionsPage({required this.account});
 
-class TransactionsPage extends StatefulWidget {
   @override
-  _TransactionPageState createState() => _TransactionPageState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Transactions'),
+      ),
+      body: account.transactions.isEmpty
+          ? Center(child: Text('No transactions yet.'))
+          : ListView.builder(
+        itemCount: account.transactions.length,
+        itemBuilder: (context, index) {
+          final tx = account.transactions[index];
+          return TransactionRow(
+            transactionType: tx.type,
+            recipient: tx.recipient,
+            dateTime: tx.dateTime,
+            amount: tx.amount,
+            add: tx.isAdded,
+            textColor: AppColors.darkGreen,
+          );
+        },
+      ),
+    );
+  }
 }
 
 class TransactionRow extends StatelessWidget {
@@ -13,6 +40,7 @@ class TransactionRow extends StatelessWidget {
   final String dateTime;
   final double amount;
   final bool add; // true = added amount, false = subtracted amount
+  final Color textColor; // Text color parameter for customization
 
   TransactionRow({
     required this.transactionType,
@@ -20,6 +48,7 @@ class TransactionRow extends StatelessWidget {
     required this.dateTime,
     required this.amount,
     required this.add,
+    required this.textColor, // Accept textColor
   });
 
   @override
@@ -27,10 +56,14 @@ class TransactionRow extends StatelessWidget {
     String symbol = add ? "+" : "-"; // Determine symbol dynamically
     Color amountColor = add ? Colors.green : Colors.red; // Green for add, red for subtract
 
+    // Format the amount with commas
+    String formattedAmount = NumberFormat("#,##0.00", "en_US").format(amount);
+
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        // Remove border line if needed
+        border: Border(bottom: BorderSide(color: Colors.transparent)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -42,7 +75,7 @@ class TransactionRow extends StatelessWidget {
                 Text(
                   transactionType,
                   style: TextStyle(
-                    color: Colors.black,
+                    color: textColor, // Use the custom text color here
                     fontSize: 10,
                     fontWeight: FontWeight.normal,
                   ),
@@ -50,7 +83,7 @@ class TransactionRow extends StatelessWidget {
                 Text(
                   recipient,
                   style: TextStyle(
-                    color: Colors.black,
+                    color: textColor, // Use the custom text color here
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -58,7 +91,7 @@ class TransactionRow extends StatelessWidget {
                 Text(
                   dateTime,
                   style: TextStyle(
-                    color: Colors.black,
+                    color: textColor, // Use the custom text color here
                     fontSize: 10,
                     fontWeight: FontWeight.normal,
                   ),
@@ -67,7 +100,7 @@ class TransactionRow extends StatelessWidget {
             ),
           ),
           Text(
-            "$symbol PHP${amount.toStringAsFixed(2)}",
+            "$symbol PHP $formattedAmount",  // Use formatted amount with commas
             style: TextStyle(
               color: amountColor,
               fontSize: 14,
@@ -80,32 +113,3 @@ class TransactionRow extends StatelessWidget {
   }
 }
 
-class _TransactionPageState extends State<TransactionsPage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Transactions'),
-      ),
-      body: ListView(
-        scrollDirection: Axis.vertical,
-        children: [
-          TransactionRow(
-            transactionType: 'Sent By',
-            recipient: 'JENNIFER MENDEZ',
-            dateTime: 'FEB 09, 2025, 10:34 AM',
-            amount: 1700,
-            add: true,
-          ),
-          TransactionRow(
-            transactionType: 'Bought From',
-            recipient: 'MICHAEL SMITH',
-            dateTime: 'MAR 12, 2025, 3:45 PM',
-            amount: 1700,
-            add: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
