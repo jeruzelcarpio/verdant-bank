@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "955185196658",
+    "project_id": "verdant-bank-4d33a",
+    "storage_bucket": "verdant-bank-4d33a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:955185196658:android:954508c22a1f8570765ceb",
+        "android_client_info": {
+          "package_name": "com.example.verdantbank"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoTWLkH4hl138oQHE5M22NA2-mOlsFSkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
