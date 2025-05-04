@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+import 'account.dart' as account;
 import 'components/network_button.dart';
 import 'components/amount_button.dart';
 import 'components/slide_to_confirm.dart';
@@ -21,6 +23,7 @@ class BuyLoadPage extends StatefulWidget {
 class _BuyLoadPageState extends State<BuyLoadPage> {
   final TextEditingController _mobileNumberController = TextEditingController();
   final TextEditingController _customAmountController = TextEditingController();
+  final firestore.FirebaseFirestore _firestore = firestore.FirebaseFirestore.instance;
   String? selectedNetwork;
   int currentStep = 0;
   String? selectedAmount;
@@ -76,21 +79,40 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
     });
 
     double amount = _getSelectedAmount()!;
+    String mobileNumber = _mobileNumberController.text;
+    String network = selectedNetwork!;
+    String transactionDateTime = _getCurrentDateTimeString();
+
     setState(() {
       userAccount.accBalance -= amount;
       _sliderValue = 0.0;
       _showConfirmationSlider = false;
     });
 
+    // Save transaction locally
     userAccount.addTransaction(
-      Transaction(
+      account.Transaction( // Explicitly use the Transaction class from account.dart
         type: "Bought Load",
-        recipient: _mobileNumberController.text + " (${selectedNetwork!})",
-        dateTime: _getCurrentDateTimeString(),
+        recipient: "$mobileNumber ($network)",
+        dateTime: transactionDateTime,
         amount: amount,
         isAdded: false,
       ),
     );
+
+    // Save transaction to Firestore
+    _firestore.collection('buy_load_transactions').add({
+      'type': "Bought Load",
+      'recipient': "$mobileNumber ($network)",
+      'dateTime': transactionDateTime,
+      'amount': amount,
+      'isAdded': false,
+      'userAccount': userAccount.accNumber,
+    }).then((_) {
+      print("Transaction saved to Firestore.");
+    }).catchError((error) {
+      print("Failed to save transaction: $error");
+    });
 
     if (widget.onUpdate != null) widget.onUpdate!();
 
