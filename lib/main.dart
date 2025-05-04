@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
@@ -22,10 +23,14 @@ Account userAccount = Account(
     accPhoneNum: "09458746633"
 );
 
-
-
-
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+    print('Firebase connected successfully');
+  } catch (e) {
+    print('Failed to connect to Firebase: $e');
+  }
   runApp(const MyApp());
   userAccount.addTransaction(
     Transaction(
@@ -88,7 +93,6 @@ void main() {
   );
 
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -370,3 +374,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
