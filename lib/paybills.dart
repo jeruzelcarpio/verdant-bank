@@ -12,8 +12,10 @@ import 'main.dart'; // <-- Import userAccount
 
 
 class PaybillsPage extends StatefulWidget {
+  final Account userAccount; // Add userAccount parameter
   final VoidCallback? onUpdate;
-  const PaybillsPage({Key? key, this.onUpdate}) : super(key: key);
+
+  const PaybillsPage({Key? key, required this.userAccount, this.onUpdate}) : super(key: key);
 
   @override
   _PaybillsPageState createState() => _PaybillsPageState();
@@ -25,7 +27,7 @@ class _PaybillsPageState extends State<PaybillsPage> {
       context,
       MaterialPageRoute(
         builder: (context) => PayBillWidget(
-          account: userAccount,
+          account: widget.userAccount, // Use widget.userAccount
           billType: billType,
           onUpdate: widget.onUpdate,
         ),
@@ -650,7 +652,9 @@ class PayBillReceiptPage extends StatelessWidget {
                 // Navigate to homepage instead of popping to first route
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => HomePage()),
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(userAccount: account), // Use 'account' instead of 'widget.userAccount'
+                  ),
                       (route) => false,
                 );
               },

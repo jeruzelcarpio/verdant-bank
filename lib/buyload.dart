@@ -11,13 +11,14 @@ import 'theme/colors.dart';
 import 'main.dart'; // Import userAccount
 
 class BuyLoadPage extends StatefulWidget {
+  final Account userAccount; // Add userAccount parameter
   final VoidCallback? onUpdate;
-  const BuyLoadPage({Key? key, this.onUpdate}) : super(key: key);
+
+  const BuyLoadPage({Key? key, required this.userAccount, this.onUpdate}) : super(key: key);
 
   @override
   _BuyLoadPageState createState() => _BuyLoadPageState();
 }
-
 class _BuyLoadPageState extends State<BuyLoadPage> {
   final TextEditingController _mobileNumberController = TextEditingController();
   final TextEditingController _customAmountController = TextEditingController();
@@ -50,7 +51,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       _showErrorSnackBar("Please select or enter a valid amount.");
       return;
     }
-    if (amount > userAccount.accBalance) {
+    if (amount > widget.userAccount.accBalance) {
       _showErrorSnackBar("Amount exceeds available balance.");
       return;
     }
@@ -77,12 +78,12 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
 
     double amount = _getSelectedAmount()!;
     setState(() {
-      userAccount.accBalance -= amount;
+      widget.userAccount.accBalance -= amount;
       _sliderValue = 0.0;
       _showConfirmationSlider = false;
     });
 
-    userAccount.addTransaction(
+    widget.userAccount.addTransaction(
       Transaction(
         type: "Bought Load",
         recipient: _mobileNumberController.text + " (${selectedNetwork!})",
@@ -98,7 +99,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       context,
       MaterialPageRoute(
         builder: (context) => OTPConfirmationScreen(
-          phoneNumber: userAccount.accPhoneNum,
+          phoneNumber: widget.userAccount.accPhoneNum,
           otpCode: "123456",
           onConfirm: () {
             Navigator.pop(context);
@@ -126,7 +127,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
           mobileNumber: _mobileNumberController.text,
           network: selectedNetwork!,
           amount: amount,
-          account: userAccount,
+          account: widget.userAccount,
         ),
       ),
     );
@@ -279,8 +280,8 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         ),
         SizedBox(height: 8),
         CardIcon(
-          savingAccountNum: userAccount.accNumber,
-          accountBalance: userAccount.accBalance,
+          savingAccountNum: widget.userAccount.accNumber,
+          accountBalance: widget.userAccount.accBalance,
         ),
         SizedBox(height: 20),
         TextField(
@@ -396,8 +397,8 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         ),
         SizedBox(height: 8),
         CardIcon(
-          savingAccountNum: userAccount.accNumber,
-          accountBalance: userAccount.accBalance,
+          savingAccountNum: widget.userAccount.accNumber,
+          accountBalance: widget.userAccount.accBalance,
         ),
         SizedBox(height: 20),
         Row(

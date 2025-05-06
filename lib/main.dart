@@ -14,14 +14,16 @@ import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'account.dart';
 import 'alixScreens/login_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore; // Aliased import
+import 'package:verdantbank/api/firestore.dart';
 
-Account userAccount = Account(
-    accFirstName: "Jeff",
-    accLastName: "Mendez",
-    accNumber: "1553 456 1234",
-    accBalance: 50000.00,
-    accPhoneNum: "09458746633"
-);
+const userAccountNumber = '1234567890'; // Example account number
+
+//Add an ccount
+
+
+
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,71 +33,27 @@ Future<void> main() async {
   } catch (e) {
     print('Failed to connect to Firebase: $e');
   }
-  runApp(const MyApp());
-  userAccount.addTransaction(
-    Transaction(
-      type: "Sent To",
-      recipient: "JENNIFER MENDEZ",
-      dateTime: "APR 20, 2025, 10:30 AM",
-      amount: 1500.0,
-      isAdded: false,
-    ),
-  );
 
-  userAccount.addTransaction(
-    Transaction(
-      type: "Received From",
-      recipient: "MICHAEL CRUZ",
-      dateTime: "APR 21, 2025, 2:15 PM",
-      amount: 3000.0,
-      isAdded: true,
-    ),
-  );
+  final firestoreInstance = firestore.FirebaseFirestore.instance;
 
-  userAccount.addTransaction(
-    Transaction(
-      type: "Sent To",
-      recipient: "MERALCO",
-      dateTime: "APR 21, 2025, 2:15 PM",
-      amount: 7231.70,
-      isAdded: false,
-    ),
-  );
 
-  userAccount.addTransaction(
-    Transaction(
-      type: "Sent To",
-      recipient: "MAYNILAD",
-      dateTime: "APR 21, 2025, 2:15 PM",
-      amount: 513.87,
-      isAdded: false,
-    ),
-  );
 
-  userAccount.addTransaction(
-    Transaction(
-      type: "Received From",
-      recipient: "BILL GATES",
-      dateTime: "APR 21, 2025, 2:15 PM",
-      amount: 300000.0,
-      isAdded: true,
-    ),
-  );
+  // Fetch the account from Firestore
+  Account userAccount = await fetchAccount(userAccountNumber) ??
+      Account(
+        accFirstName: 'Default',
+        accLastName: 'User',
+        accNumber: '0000000000',
+        accBalance: 0.0,
+        accPhoneNum: '0000000000',
+      );
 
-  userAccount.addTransaction(
-    Transaction(
-      type: "Sent To",
-      recipient: "MARIA FELIPE",
-      dateTime: "APR 21, 2025, 2:15 PM",
-      amount: 754.43,
-      isAdded: false,
-    ),
-  );
-
+  runApp(MyApp(userAccount: userAccount));
 }
-
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Account userAccount;
+
+  const MyApp({super.key, required this.userAccount});
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +66,7 @@ class MyApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         if (settings.name == '/home') {
           return MaterialPageRoute(
-            builder: (context) => const HomePage(),
+            builder: (context) => HomePage(userAccount: userAccount), // Pass userAccount
             settings: const RouteSettings(name: '/home'),
           );
         }
@@ -118,10 +76,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Account userAccount;
+
+  const HomePage({super.key, required this.userAccount});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -142,11 +100,10 @@ class _HomePageState extends State<HomePage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              TransferPage(
-                account: userAccount,
-                onUpdate: _updateAccount, // Pass the callback
-              ),
+          builder: (context) => TransferPage(
+            account: widget.userAccount,
+            onUpdate: _updateAccount, // Pass the callback
+          ),
         ),
       );
     }
@@ -154,14 +111,24 @@ class _HomePageState extends State<HomePage> {
     if (action == 'Pay Bills') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => PaybillsPage(onUpdate: _updateAccount)),
+        MaterialPageRoute(
+          builder: (context) => PaybillsPage(
+            userAccount: widget.userAccount, // Pass userAccount
+            onUpdate: _updateAccount,
+          ),
+        ),
       );
     }
 
     if (action == 'Buy Load') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => BuyLoadPage()),
+        MaterialPageRoute(
+          builder: (context) => BuyLoadPage(
+            userAccount: widget.userAccount, // Pass userAccount
+            onUpdate: _updateAccount,
+          ),
+        ),
       );
     }
 
@@ -183,7 +150,7 @@ class _HomePageState extends State<HomePage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TransactionsPage(account: userAccount),
+          builder: (context) => TransactionsPage(account: widget.userAccount),
         ),
       );
     }
@@ -191,185 +158,184 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    List<Transaction> latestTransactions = userAccount.transactions.take(4).toList();
+    List<Transaction> latestTransactions =
+    widget.userAccount.transactions.take(4).toList();
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
-      body:
-      Expanded(
-        child:
-        SingleChildScrollView(
-          child:
-          Padding(
-            padding: const EdgeInsets.all(40.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          FontAwesomeIcons.creditCard,
-                          size: 16,
-                          color: AppColors.milk,
-                        ),
-                        SizedBox(width: 12,),
-                        Text(
-                          "Welcome, ${userAccount.accFirstName}!",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.milk,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Row(
-                      children: [
-                        Padding(padding: EdgeInsets.all(10),
-                          child:
-                          Icon(
-                            FontAwesomeIcons.user,
-                            size: 16,
-                            color: AppColors.lighterGreen,
-                          ),
-                        ),
-                        Padding(padding: EdgeInsets.all(10),
-                          child:
-                          Icon(
-                            FontAwesomeIcons.bell,
-                            size: 16,
-                            color: AppColors.lighterGreen,
-                          ),
-                        ),
-
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 38,),
-
-                CardIcon(
-                  savingAccountNum: userAccount.accNumber,
-                  accountBalance: userAccount.accBalance,
-                ),
-                SizedBox(height: 70),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.start,
-                  children: [
-                    MenuButton(
-                      bgColor: AppColors.lighterGreen,
-                      buttonName: "Transfer",
-                      icon: Icons.payment,
-                      onPressColor: AppColors.lightGreen,
-                      onPressed: () => _handleButtonPress('Transfer', context),
-                    ),
-                    MenuButton(
-                      bgColor: AppColors.lighterGreen,
-                      buttonName: "Pay Bills",
-                      icon: Icons.receipt_rounded,
-                      onPressColor: AppColors.lightGreen,
-                      onPressed: () => _handleButtonPress('Pay Bills', context),
-                    ),
-                    MenuButton(
-                      bgColor: AppColors.lighterGreen,
-                      buttonName: "Buy Load",
-                      icon: Icons.sim_card,
-                      onPressColor: AppColors.lightGreen,
-                      onPressed: () => _handleButtonPress('Buy Load', context),
-                    ),
-                    MenuButton(
-                      bgColor: AppColors.lighterGreen,
-                      buttonName: "Invest",
-                      icon: Icons.trending_up_rounded,
-                      onPressColor: AppColors.lightGreen,
-                      onPressed: () => _handleButtonPress('Invest', context),
-                    ),
-                    MenuButton(
-                      bgColor: AppColors.lighterGreen,
-                      buttonName: "Savings",
-                      icon: Icons.savings_rounded,
-                      onPressColor: AppColors.lightGreen,
-                      onPressed: () => _handleButtonPress('Savings', context),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 21,),
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: AppColors.green, // Keep the container's color
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(40.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                     children: [
-                      Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text(
-                          'TRANSACTION HISTORY',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.yellowGold, // Set the title color to white (only here)
-                          ),
-                        ),
+                      Icon(
+                        FontAwesomeIcons.creditCard,
+                        size: 16,
+                        color: AppColors.milk,
                       ),
-                      Column(
-                        children: [
-                          ...latestTransactions.map((tx) => TransactionRow(
-                            transactionType: tx.type,
-                            recipient: tx.recipient,
-                            dateTime: tx.dateTime,
-                            amount: tx.amount,
-                            add: tx.isAdded,
-                            // Set the transaction text to white here
-                            textColor: Colors.white, // Override text color to white
-                          )),
-                        ],
+                      SizedBox(
+                        width: 12,
                       ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 10, horizontal: 40),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => TransactionsPage(account: userAccount)),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: AppColors.yellowGold,
-                            backgroundColor: AppColors.lighterGreen,// Button color
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                          ),
-                          child: Text(
-                            'See More',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.green, // Button text color
-                            ),
-                          ),
+                      Text(
+                        "Welcome, ${widget.userAccount.accFirstName}!",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.milk,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
+                  Row(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(
+                          FontAwesomeIcons.user,
+                          size: 16,
+                          color: AppColors.lighterGreen,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(
+                          FontAwesomeIcons.bell,
+                          size: 16,
+                          color: AppColors.lighterGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              SizedBox(
+                height: 38,
+              ),
+              CardIcon(
+                savingAccountNum: widget.userAccount.accNumber,
+                accountBalance: widget.userAccount.accBalance,
+              ),
+              SizedBox(height: 70),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.start,
+                children: [
+                  MenuButton(
+                    bgColor: AppColors.lighterGreen,
+                    buttonName: "Transfer",
+                    icon: Icons.payment,
+                    onPressColor: AppColors.lightGreen,
+                    onPressed: () => _handleButtonPress('Transfer', context),
+                  ),
+                  MenuButton(
+                    bgColor: AppColors.lighterGreen,
+                    buttonName: "Pay Bills",
+                    icon: Icons.receipt_rounded,
+                    onPressColor: AppColors.lightGreen,
+                    onPressed: () => _handleButtonPress('Pay Bills', context),
+                  ),
+                  MenuButton(
+                    bgColor: AppColors.lighterGreen,
+                    buttonName: "Buy Load",
+                    icon: Icons.sim_card,
+                    onPressColor: AppColors.lightGreen,
+                    onPressed: () => _handleButtonPress('Buy Load', context),
+                  ),
+                  MenuButton(
+                    bgColor: AppColors.lighterGreen,
+                    buttonName: "Invest",
+                    icon: Icons.trending_up_rounded,
+                    onPressColor: AppColors.lightGreen,
+                    onPressed: () => _handleButtonPress('Invest', context),
+                  ),
+                  MenuButton(
+                    bgColor: AppColors.lighterGreen,
+                    buttonName: "Savings",
+                    icon: Icons.savings_rounded,
+                    onPressColor: AppColors.lightGreen,
+                    onPressed: () => _handleButtonPress('Savings', context),
+                  ),
+                ],
+              ),
+              SizedBox(
+                height: 21,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: AppColors.green, // Keep the container's color
                 ),
-
-
-              ],
-            ),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'TRANSACTION HISTORY',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.yellowGold, // Set the title color to white (only here)
+                        ),
+                      ),
+                    ),
+                    Column(
+                      children: [
+                        ...latestTransactions.map((tx) => TransactionRow(
+                          transactionType: tx.type,
+                          recipient: tx.recipient,
+                          dateTime: tx.dateTime,
+                          amount: tx.amount,
+                          add: tx.isAdded,
+                          textColor: Colors.white, // Override text color to white
+                        )),
+                      ],
+                    ),
+                    Padding(
+                      padding:
+                      EdgeInsets.symmetric(vertical: 10, horizontal: 40),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => TransactionsPage(
+                                    account: widget.userAccount)),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: AppColors.yellowGold,
+                          backgroundColor:
+                          AppColors.lighterGreen, // Button color
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                        ),
+                        child: Text(
+                          'See More',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.green, // Button text color
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-
       ),
     );
   }
