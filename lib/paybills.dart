@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/account.dart' as model;
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'package:verdantbank/components/slide_to_confirm.dart';
 import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'theme/colors.dart';
 import 'main.dart'; // <-- Import userAccount
-
 
 class PaybillsPage extends StatefulWidget {
   final VoidCallback? onUpdate;
@@ -108,7 +108,7 @@ class _PaybillsPageState extends State<PaybillsPage> {
 }
 
 class PayBillWidget extends StatefulWidget {
-  final Account account;
+  final model.Account account;
   final String billType;
   final VoidCallback? onUpdate;
 
@@ -413,7 +413,7 @@ class PayBillSlideConfirmPage extends StatefulWidget {
   final String company;
   final double amount;
   final String remarks;
-  final Account account;
+  final model.Account account;
   final VoidCallback? onUpdate;
 
   const PayBillSlideConfirmPage({
@@ -554,14 +554,14 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
     );
   }
 
-  void _processPayment() {
+  void _processPayment() async {
     if (_isProcessing) return;
     setState(() {
       _isProcessing = true;
     });
 
     widget.account.addTransaction(
-      Transaction(
+      model.Transaction(
         type: "Sent To",
         recipient: widget.company,
         dateTime: _getCurrentDateTimeString(),
@@ -570,6 +570,16 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
       ),
     );
     if (widget.onUpdate != null) widget.onUpdate!();
+
+    // Save to Firestore (no auth)
+    await FirebaseFirestore.instance.collection('bill_payments').add({
+      'billType': widget.billType,
+      'company': widget.company,
+      'amount': widget.amount,
+      'remarks': widget.remarks,
+      'accountNumber': widget.account.accNumber,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
 
     Navigator.pushReplacement(
       context,
@@ -600,7 +610,7 @@ class PayBillReceiptPage extends StatelessWidget {
   final String company;
   final double amount;
   final String remarks;
-  final Account account;
+  final model.Account account;
 
   const PayBillReceiptPage({
     Key? key,
