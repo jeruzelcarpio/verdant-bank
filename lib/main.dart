@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
-import 'alixScreens/onboarding_screen.dart';
 import 'alixScreens/signIn_screen.dart';
 import 'transfer.dart';
 import 'paybills.dart';
@@ -13,15 +12,10 @@ import 'savings.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'account.dart';
-import 'alixScreens/login_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore; // Aliased import
 import 'package:verdantbank/api/firestore.dart';
 
 const userAccountNumber = '1234567890'; // Example account number
-
-//Add an ccount
-
-
 
 
 
@@ -50,6 +44,38 @@ Future<void> main() async {
 
   runApp(MyApp(userAccount: userAccount));
 }
+
+
+class RotationYTransition extends StatelessWidget {
+  final Widget child;
+  final Animation<double> animation;
+
+  const RotationYTransition({
+    required this.child,
+    required this.animation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final angle = animation.value * 3.1415926535897932; // Convert to radians
+        final isFlipped = angle > 3.1415926535897932 / 2;
+
+        return Transform(
+          transform: Matrix4.rotationY(angle),
+          alignment: Alignment.center,
+          child: isFlipped
+              ? Opacity(opacity: 0, child: child) // Hide the back side
+              : child,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class MyApp extends StatelessWidget {
   final Account userAccount;
 
@@ -60,6 +86,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'VerdantBank Mobile Banking',
       theme: ThemeData(
+        fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
       home: const SignInScreen(), // Initial screen
@@ -86,6 +113,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool _isFlipped = false;
+
+  void _toggleCardFlip() {
+    setState(() {
+      _isFlipped = !_isFlipped;
+    });
+  }
+
   void _updateAccount() {
     setState(() {
       // Trigger a rebuild to reflect the updated balance
@@ -217,11 +252,75 @@ class _HomePageState extends State<HomePage> {
               SizedBox(
                 height: 38,
               ),
-              CardIcon(
-                savingAccountNum: widget.userAccount.accNumber,
-                accountBalance: widget.userAccount.accBalance,
+              GestureDetector(
+                onTap: _toggleCardFlip, // Flip the card on tap
+                child: AnimatedSwitcher(
+                  duration: Duration(milliseconds: 500),
+                  transitionBuilder: (child, animation) {
+                    return AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        final angle = animation.value * 3.1415926535897932; // Convert to radians
+                        final isFlipped = angle > 3.1415926535897932 / 2;
+
+                        return Transform(
+                          transform: Matrix4.rotationY(angle),
+                          alignment: Alignment.center,
+                          child: isFlipped
+                              ? Transform(
+                            transform: Matrix4.rotationY(3.1415926535897932),
+                            alignment: Alignment.center,
+                            child: child,
+                          )
+                              : child,
+                        );
+                      },
+                      child: child,
+                    );
+                  },
+                  child: _isFlipped
+                      ? CardIcon(
+                    key: ValueKey('flipped'),
+                    savingAccountNum: "BACK OF CARD",
+                    accountBalance: widget.userAccount.accBalance,
+                  )
+                      : CardIcon(
+                    key: ValueKey('front'),
+                    savingAccountNum: widget.userAccount.accNumber,
+                    accountBalance: widget.userAccount.accBalance,
+                  ),
+                ),
               ),
-              SizedBox(height: 70),
+
+              SizedBox(height: 20),
+
+              ElevatedButton(
+                onPressed: _toggleCardFlip,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.darkGreen,
+                ),
+                child:
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _isFlipped
+                          ? FontAwesomeIcons.arrowRotateLeft
+                          : FontAwesomeIcons.arrowRotateRight,
+                      color: AppColors.lighterGreen,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      _isFlipped ? "Show Card" : "Show Account",
+                      style: TextStyle(
+                        color: AppColors.lighterGreen,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                )
+              ),
+              SizedBox(height: 21),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,

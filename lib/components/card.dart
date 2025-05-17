@@ -5,18 +5,18 @@ class CardIcon extends StatelessWidget {
   final String savingAccountNum;
   final double accountBalance;
 
-  CardIcon({
+  const CardIcon({
+    Key? key, // Add the key parameter
     required this.savingAccountNum,
     required this.accountBalance,
-  });
+  }) : super(key: key); // Pass the key to the superclass
 
   @override
   Widget build(BuildContext context) {
-    // Format the balance with commas and two decimal places
     final formattedBalance = NumberFormat.currency(
-      locale: 'en_US', // Locale for formatting
-      symbol: '',      // Remove currency symbol
-      decimalDigits: 2, // Limit to two decimal places
+      locale: 'en_US',
+      symbol: '',
+      decimalDigits: 2,
     ).format(accountBalance);
 
     return Container(
@@ -34,7 +34,7 @@ class CardIcon extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(2.0), // Border thickness
+        padding: const EdgeInsets.all(2.0),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -45,7 +45,7 @@ class CardIcon extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(16), // Match outer radius
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -53,7 +53,6 @@ class CardIcon extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Savings Account Section
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -65,7 +64,7 @@ class CardIcon extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    SizedBox(height: 4), // Add spacing between the two texts
+                    SizedBox(height: 4),
                     Text(
                       savingAccountNum,
                       style: TextStyle(
@@ -76,7 +75,6 @@ class CardIcon extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Available Balance Section
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
