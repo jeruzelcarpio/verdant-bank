@@ -15,6 +15,8 @@ import 'models/account.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore; // Aliased import
 import 'package:verdantbank/api/firestore.dart';
 import 'package:verdantbank/animation_class/card_animation.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 
 const userAccountNumber = '1234567891';
 const userAccountEmail = 'franzperez1073@gmail.com';
@@ -102,6 +104,14 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.green,
       ),
       home: HomePage(userAccount: userAccount),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/home') {
+          return MaterialPageRoute(
+            builder: (context) => HomePage(userAccount: userAccount),
+          );
+        }
+        return null;
+      },
     );
   }
 }
@@ -356,16 +366,17 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 21),
                   Container(
+                    width: double.infinity, // Make it as wide as possible
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       color: AppColors.green,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Less padding for more width
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Padding(
-                          padding: EdgeInsets.all(20),
+                          padding: EdgeInsets.all(5),
                           child: Text(
                             'TRANSACTION HISTORY',
                             textAlign: TextAlign.center,
@@ -376,14 +387,84 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        Column(
-                          children: [
-                            // Replace with actual transaction data
-                            Text(
-                              'No transactions available.',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
+                        StreamBuilder<firestore.QuerySnapshot>(
+                          stream: firestore.FirebaseFirestore.instance
+                              .collection('transactions')
+                              .where('accounts', arrayContains: accountData.accNumber)
+                              .orderBy('dateTime', descending: true)
+                              .limit(4)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            List<Widget> transactionWidgets = [];
+                            if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                              final docs = snapshot.data!.docs;
+                              for (int i = 0; i < 4; i++) {
+                                if (i < docs.length) {
+                                  final data = docs[i].data() as Map<String, dynamic>;
+                                  // Format dateTime
+                                  String dateString = '';
+                                  final dateTime = data['dateTime'];
+                                  if (dateTime is Timestamp) {
+                                    dateString = DateFormat('yyyy-MM-dd HH:mm').format(dateTime.toDate());
+                                  } else if (dateTime is String) {
+                                    dateString = dateTime;
+                                  }
+                                  // Format amount
+                                  double amount = 0.0;
+                                  if (data['amount'] is int) {
+                                    amount = (data['amount'] as int).toDouble();
+                                  } else if (data['amount'] is double) {
+                                    amount = data['amount'];
+                                  }
+                                  String formattedAmount = NumberFormat("#,##0.00", "en_US").format(amount);
+
+                                  transactionWidgets.add(
+                                    ListTile(
+                                      title: Text(
+                                        data['type'] ?? 'Transaction',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Text(
+                                        dateString,
+                                        style: const TextStyle(color: Colors.white70),
+                                      ),
+                                      trailing: Text(
+                                        '₱$formattedAmount',
+                                        style: const TextStyle(color: AppColors.yellowGold, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  // Placeholder for empty slots
+                                  transactionWidgets.add(
+                                    ListTile(
+                                      title: Text(
+                                        'No transaction',
+                                        style: const TextStyle(color: AppColors.green),
+                                      ),
+                                      subtitle: const Text('—', style: TextStyle(color: AppColors.green)),
+                                      trailing: const Text('₱0.00', style: TextStyle(color: AppColors.green)),
+                                    ),
+                                  );
+                                }
+                              }
+                            } else {
+                              // No data, show 4 placeholders
+                              for (int i = 0; i < 4; i++) {
+                                transactionWidgets.add(
+                                  ListTile(
+                                    title: Text(
+                                      'No transaction',
+                                      style: const TextStyle(color: AppColors.green),
+                                    ),
+                                    subtitle: const Text('—', style: TextStyle(color: AppColors.green)),
+                                    trailing: const Text('₱0.00', style: TextStyle(color: AppColors.green)),
+                                  ),
+                                );
+                              }
+                            }
+                            return Column(children: transactionWidgets);
+                          },
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),

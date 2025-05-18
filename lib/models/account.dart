@@ -1,18 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 
 class Transaction {
-    String type;        // e.g., "Sent", "Received", "Bought"
-    String recipient;   // Name of the recipient
-    String dateTime;    // Formatted date string
-    double amount;      // Amount of money
-    bool isAdded;       // true if it adds to balance, false if subtracts
+    String type; // e.g., "Sent", "Received", "Bought"
+    String sourceAccount; // Source account number
+    String destinationAccount; // Destination account number
+    String dateTime; // Formatted date string
+    double amount; // Amount of money
 
     Transaction({
         required this.type,
-        required this.recipient,
+        required this.sourceAccount,
+        required this.destinationAccount,
         required this.dateTime,
         required this.amount,
-        required this.isAdded,
     });
 }
 
@@ -47,36 +47,56 @@ class Account {
 
     // Fetch transactions from Firestore
     Future<void> fetchTransactions() async {
-        final snapshot = await FirebaseFirestore.instance
+        final sourceSnapshot = await firestore.FirebaseFirestore.instance
             .collection('transactions')
-            .where('accountNumber', isEqualTo: accNumber)
+            .where('sourceAccount', isEqualTo: accNumber)
             .get();
 
-        transactions = snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Transaction(
-                type: data['type'],
-                recipient: data['recipient'],
-                dateTime: data['dateTime'],
-                amount: data['amount'],
-                isAdded: data['isAdded'],
-            );
-        }).toList();
+        final destinationSnapshot = await firestore.FirebaseFirestore.instance
+            .collection('transactions')
+            .where('destinationAccount', isEqualTo: accNumber)
+            .get();
+
+        transactions = [
+            ...sourceSnapshot.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return Transaction(
+                    type: data['type'],
+                    sourceAccount: data['sourceAccount'],
+                    destinationAccount: data['destinationAccount'],
+                    dateTime: data['dateTime'],
+                    amount: data['amount'],
+                );
+            }),
+            ...destinationSnapshot.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return Transaction(
+                    type: data['type'],
+                    sourceAccount: data['sourceAccount'],
+                    destinationAccount: data['destinationAccount'],
+                    dateTime: data['dateTime'],
+                    amount: data['amount'],
+                );
+            }),
+        ];
     }
 
     // Add a transaction to Firestore
     Future<void> addTransaction(Transaction transaction) async {
-        await FirebaseFirestore.instance.collection('transactions').add({
-            'accountNumber': accNumber,
+        await firestore.FirebaseFirestore.instance.collection('transactions').add({
             'type': transaction.type,
-            'recipient': transaction.recipient,
+            'sourceAccount': transaction.sourceAccount,
+            'destinationAccount': transaction.destinationAccount,
             'dateTime': transaction.dateTime,
             'amount': transaction.amount,
-            'isAdded': transaction.isAdded,
         });
 
         // Update local list
         transactions.add(transaction);
-        accBalance += transaction.isAdded ? transaction.amount : -transaction.amount;
+        if (transaction.sourceAccount == accNumber) {
+            accBalance -= transaction.amount;
+        } else if (transaction.destinationAccount == accNumber) {
+            accBalance += transaction.amount;
+        }
     }
 }

@@ -162,6 +162,22 @@ class _TransferWidgetState extends State<TransferWidget> {
       return;
     }
 
+    if(accountNumberController.text.isEmpty) {
+      _showErrorDialog("Please enter a valid account number.");
+      setState(() {
+        _isTransactionInProgress = false;
+      });
+      return;
+    }
+
+    if(accountNumberController.text == widget.account.accNumber) {
+      _showErrorDialog("You cannot transfer to your own account.");
+      setState(() {
+        _isTransactionInProgress = false;
+      });
+      return;
+    }
+
     try {
       // Query recipient account
       final recipientQuery = firestore.FirebaseFirestore.instance
@@ -225,6 +241,17 @@ class _TransferWidgetState extends State<TransferWidget> {
 
                   transaction.update(recipientAccountRef, {
                     'accBalance': firestore.FieldValue.increment(amount),
+                  });
+
+                  // Save transaction to Firestore
+                  await firestore.FirebaseFirestore.instance.collection('transactions').add({
+                    'type': 'Transfer',
+                    'sourceAccount': widget.account.accNumber,
+                    'destinationAccount': accountNumberController.text,
+                    'accounts': [widget.account.accNumber, accountNumberController.text], // <-- add this line
+                    'dateTime': firestore.FieldValue.serverTimestamp(),
+                    'amount': amount,
+                    'remarks': remarksController.text,
                   });
                 });
 

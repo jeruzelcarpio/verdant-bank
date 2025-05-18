@@ -83,6 +83,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       _showConfirmationSlider = false;
     });
 
+    /*
     widget.userAccount.addTransaction(
       Transaction(
         type: "Bought Load",
@@ -92,6 +93,8 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         isAdded: false,
       ),
     );
+    */
+
 
     if (widget.onUpdate != null) widget.onUpdate!();
 

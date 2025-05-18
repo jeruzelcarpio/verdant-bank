@@ -562,6 +562,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
       _isProcessing = true;
     });
 
+    /*
     widget.account.addTransaction(
       Transaction(
         type: "Sent To",
@@ -571,6 +572,8 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
         isAdded: false,
       ),
     );
+
+     */
     if (widget.onUpdate != null) widget.onUpdate!();
 
     Navigator.pushReplacement(
