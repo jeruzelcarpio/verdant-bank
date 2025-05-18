@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/slide_to_confirm.dart';

@@ -4,7 +4,7 @@ import 'components/network_button.dart';
 import 'components/amount_button.dart';
 import 'components/slide_to_confirm.dart';
 import 'components/transaction_receipt.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'theme/colors.dart';

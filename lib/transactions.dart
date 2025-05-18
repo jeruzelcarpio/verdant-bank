@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
-import 'account.dart'; // Import your Account class with Transaction model
+import 'models/account.dart'; // Import your Account class with Transaction model
 import 'package:intl/intl.dart';  // Add this import
 
 class TransactionsPage extends StatelessWidget {

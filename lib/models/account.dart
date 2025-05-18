@@ -22,6 +22,7 @@ class Account {
     final String accNumber;
     double accBalance;
     final String accPhoneNum;
+    final String accEmail;
     List<Transaction> transactions = [];
 
     Account({
@@ -30,7 +31,19 @@ class Account {
         required this.accNumber,
         required this.accBalance,
         required this.accPhoneNum,
+        required this.accEmail,
     });
+
+    factory Account.fromMap(Map<String, dynamic> map) {
+        return Account(
+            accFirstName: map['accFirstName'] ?? '',
+            accLastName: map['accLastName'] ?? '',
+            accNumber: map['accNumber'] ?? '',
+            accBalance: (map['accBalance'] ?? 0).toDouble(),
+            accPhoneNum: map['accPhoneNum'] ?? '',
+            accEmail: map['accEmail'] ?? '',
+        );
+    }
 
     // Fetch transactions from Firestore
     Future<void> fetchTransactions() async {
