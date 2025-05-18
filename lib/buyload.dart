@@ -31,6 +31,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
   bool _showConfirmationSlider = false;
   double _sliderValue = 0.0;
   bool _isTransactionInProgress = false;
+  String? destinationAccount; // Added destination account field
 
   // Philippine mobile number validation
   bool _isValidPhilippineNumber(String? number) {
@@ -82,6 +83,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
     String mobileNumber = _mobileNumberController.text;
     String network = selectedNetwork!;
     String transactionDateTime = _getCurrentDateTimeString();
+    String sourceAccount = userAccount.accNumber.replaceAll(' ', '');
 
     setState(() {
       userAccount.accBalance -= amount;
@@ -107,7 +109,8 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       'dateTime': transactionDateTime,
       'amount': amount,
       'isAdded': false,
-      'userAccount': userAccount.accNumber,
+      'sourceAccount': sourceAccount,
+      'destinationAccount': destinationAccount,
     }).then((_) {
       print("Transaction saved to Firestore.");
     }).catchError((error) {
@@ -149,6 +152,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
           network: selectedNetwork!,
           amount: amount,
           account: userAccount,
+          destinationAccount: destinationAccount ?? "${selectedNetwork!} Company",
         ),
       ),
     );
@@ -180,6 +184,29 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
     if (_isValidPhilippineNumber(_mobileNumberController.text)) {
       setState(() {
         selectedNetwork = network;
+        // Set destination account based on network
+        switch (network) {
+          case 'SMART':
+            destinationAccount = 'SMART Communications Inc.';
+            break;
+          case 'TNT':
+            destinationAccount = 'TNT Mobile Network';
+            break;
+          case 'GLOBE':
+            destinationAccount = 'Globe Telecom Inc.';
+            break;
+          case 'DITO':
+            destinationAccount = 'DITO Telecommunity Corp.';
+            break;
+          case 'TM':
+            destinationAccount = 'TM by Globe';
+            break;
+          case 'CHERRY PREPAID':
+            destinationAccount = 'Cherry Prepaid by Globe';
+            break;
+          default:
+            destinationAccount = '$network Company';
+        }
         currentStep = 1;
       });
     } else {
@@ -292,7 +319,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'SOURCE',
+          'SOURCE ACCOUNT',
           style: TextStyle(
             color: AppColors.yellowGold,
             fontWeight: FontWeight.w600,
@@ -301,7 +328,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         ),
         SizedBox(height: 8),
         CardIcon(
-          savingAccountNum: userAccount.accNumber,
+          savingAccountNum: userAccount.accNumber.replaceAll(' ', ''),
           accountBalance: userAccount.accBalance,
         ),
         SizedBox(height: 20),
@@ -409,7 +436,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'SOURCE',
+          'SOURCE ACCOUNT',
           style: TextStyle(
             color: AppColors.yellowGold,
             fontWeight: FontWeight.w600,
@@ -418,7 +445,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         ),
         SizedBox(height: 8),
         CardIcon(
-          savingAccountNum: userAccount.accNumber,
+          savingAccountNum: userAccount.accNumber.replaceAll(' ', ''),
           accountBalance: userAccount.accBalance,
         ),
         SizedBox(height: 20),
@@ -462,6 +489,34 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
             ),
           ],
         ),
+        SizedBox(height: 10),
+        if (destinationAccount != null)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'DESTINATION ACCOUNT',
+                style: TextStyle(
+                  color: AppColors.yellowGold,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppColors.lighterGreen),
+                ),
+                child: Text(
+                  destinationAccount!,
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
         SizedBox(height: 20),
         Text(
           'Choose Amount',
@@ -567,6 +622,7 @@ class LoadReceiptPage extends StatelessWidget {
   final String network;
   final double amount;
   final Account account;
+  final String destinationAccount;
 
   const LoadReceiptPage({
     Key? key,
@@ -574,6 +630,7 @@ class LoadReceiptPage extends StatelessWidget {
     required this.network,
     required this.amount,
     required this.account,
+    required this.destinationAccount,
   }) : super(key: key);
 
   @override
@@ -606,7 +663,8 @@ class LoadReceiptPage extends StatelessWidget {
               amountText: "₱${amount.toStringAsFixed(2)}",
               mobileNumber: mobileNumber,
               selectedNetwork: network,
-              sourceAccount: account.accNumber,
+              sourceAccount: account.accNumber.replaceAll(' ', ''),
+              destinationAccount: destinationAccount,
               onSave: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Receipt saved")),

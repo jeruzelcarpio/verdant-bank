@@ -126,9 +126,9 @@ class PayBillWidget extends StatefulWidget {
 class _PayBillWidgetState extends State<PayBillWidget> {
   final TextEditingController amountController = TextEditingController();
   final TextEditingController remarksController = TextEditingController();
-  String? selectedCompany;
+  String? selectedDestinationAccount;
 
-  List<String> companies = [
+  List<String> destinationAccounts = [
     'MERALCO',
     'MAYNILAD',
     'PLDT',
@@ -137,8 +137,8 @@ class _PayBillWidgetState extends State<PayBillWidget> {
   ];
 
   void _payBill() {
-    if (selectedCompany == null || selectedCompany!.isEmpty) {
-      _showErrorDialog("Please select a company.");
+    if (selectedDestinationAccount == null || selectedDestinationAccount!.isEmpty) {
+      _showErrorDialog("Please select a destination account.");
       return;
     }
     if (amountController.text.isEmpty) {
@@ -169,10 +169,10 @@ class _PayBillWidgetState extends State<PayBillWidget> {
               MaterialPageRoute(
                 builder: (context) => PayBillSlideConfirmPage(
                   billType: widget.billType,
-                  company: selectedCompany!,
+                  destinationAccount: selectedDestinationAccount!,
                   amount: amount,
                   remarks: remarksController.text,
-                  account: widget.account,
+                  sourceAccount: widget.account,
                   onUpdate: widget.onUpdate,
                 ),
               ),
@@ -246,7 +246,7 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                   ),
                 ),
                 CardIcon(
-                  savingAccountNum: widget.account.accNumber,
+                  savingAccountNum: widget.account.accNumber.replaceAll(' ', ''),
                   accountBalance: widget.account.accBalance,
                 ),
                 SizedBox(height: 16),
@@ -280,19 +280,19 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                             child: DropdownButton<String>(
                               isExpanded: true,
                               hint: Text(
-                                'Select Company',
+                                'Select Destination Account',
                                 style: TextStyle(color: AppColors.lighterGreen),
                               ),
-                              value: selectedCompany,
+                              value: selectedDestinationAccount,
                               dropdownColor: AppColors.green,
                               icon: Icon(Icons.arrow_drop_down, color: AppColors.lighterGreen),
                               style: TextStyle(color: Colors.white),
                               onChanged: (String? newValue) {
                                 setState(() {
-                                  selectedCompany = newValue;
+                                  selectedDestinationAccount = newValue;
                                 });
                               },
-                              items: companies.map<DropdownMenuItem<String>>((String value) {
+                              items: destinationAccounts.map<DropdownMenuItem<String>>((String value) {
                                 return DropdownMenuItem<String>(
                                   value: value,
                                   child: Text(value),
@@ -410,19 +410,19 @@ class _PayBillWidgetState extends State<PayBillWidget> {
 
 class PayBillSlideConfirmPage extends StatefulWidget {
   final String billType;
-  final String company;
+  final String destinationAccount;
   final double amount;
   final String remarks;
-  final model.Account account;
+  final model.Account sourceAccount;
   final VoidCallback? onUpdate;
 
   const PayBillSlideConfirmPage({
     Key? key,
     required this.billType,
-    required this.company,
+    required this.destinationAccount,
     required this.amount,
     required this.remarks,
-    required this.account,
+    required this.sourceAccount,
     this.onUpdate,
   }) : super(key: key);
 
@@ -471,11 +471,11 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                       ),
                       SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                       _buildDetailRow("Bill Type", widget.billType),
-                      _buildDetailRow("Provider", widget.company),
+                      _buildDetailRow("Destination Account", widget.destinationAccount),
                       _buildDetailRow("Amount", "₱${widget.amount.toStringAsFixed(2)}"),
                       if (widget.remarks.isNotEmpty)
                         _buildDetailRow("Remarks", widget.remarks),
-                      _buildDetailRow("From Account", widget.account.accNumber),
+                      _buildDetailRow("Source Account", widget.sourceAccount.accNumber.replaceAll(' ', '')),
                       SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                       Container(
                         padding: EdgeInsets.all(15),
@@ -490,7 +490,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                "Slide to confirm your payment of ₱${widget.amount.toStringAsFixed(2)} to ${widget.company}",
+                                "Slide to confirm your payment of ₱${widget.amount.toStringAsFixed(2)} to ${widget.destinationAccount}",
                                 style: TextStyle(
                                   color: AppColors.lighterGreen,
                                   fontSize: 14,
@@ -560,10 +560,10 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
       _isProcessing = true;
     });
 
-    widget.account.addTransaction(
+    widget.sourceAccount.addTransaction(
       model.Transaction(
         type: "Sent To",
-        recipient: widget.company,
+        recipient: widget.destinationAccount,
         dateTime: _getCurrentDateTimeString(),
         amount: widget.amount,
         isAdded: false,
@@ -574,10 +574,10 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
     // Save to Firestore (no auth)
     await FirebaseFirestore.instance.collection('bill_payments').add({
       'billType': widget.billType,
-      'company': widget.company,
+      'destinationAccount': widget.destinationAccount,
       'amount': widget.amount,
       'remarks': widget.remarks,
-      'accountNumber': widget.account.accNumber,
+      'sourceAccount': widget.sourceAccount.accNumber.replaceAll(' ', ''),
       'timestamp': FieldValue.serverTimestamp(),
     });
 
@@ -586,10 +586,10 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
       MaterialPageRoute(
         builder: (context) => PayBillReceiptPage(
           billType: widget.billType,
-          company: widget.company,
+          destinationAccount: widget.destinationAccount,
           amount: widget.amount,
           remarks: widget.remarks,
-          account: widget.account,
+          sourceAccount: widget.sourceAccount,
         ),
       ),
     );
@@ -607,18 +607,18 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
 
 class PayBillReceiptPage extends StatelessWidget {
   final String billType;
-  final String company;
+  final String destinationAccount;
   final double amount;
   final String remarks;
-  final model.Account account;
+  final model.Account sourceAccount;
 
   const PayBillReceiptPage({
     Key? key,
     required this.billType,
-    required this.company,
+    required this.destinationAccount,
     required this.amount,
     required this.remarks,
-    required this.account,
+    required this.sourceAccount,
   }) : super(key: key);
 
   @override
@@ -649,8 +649,8 @@ class PayBillReceiptPage extends StatelessWidget {
               transactionId: transactionId,
               transactionDateTime: transactionDateTime,
               amountText: "₱${amount.toStringAsFixed(2)}",
-              merchant: company,
-              sourceAccount: account.accNumber,
+              merchant: destinationAccount,
+              sourceAccount: sourceAccount.accNumber.replaceAll(' ', ''),
               onSave: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Receipt saved")),
@@ -671,3 +671,4 @@ class PayBillReceiptPage extends StatelessWidget {
     );
   }
 }
+
