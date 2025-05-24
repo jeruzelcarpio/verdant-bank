@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Add this import
 
 class StockMarketCheckoutPage extends StatelessWidget {
   final String name;
@@ -9,6 +10,7 @@ class StockMarketCheckoutPage extends StatelessWidget {
   final String change;
   final String logoUrl;
   final bool isUp;
+  final String destinationAccount; // Add this field
 
   const StockMarketCheckoutPage({
     super.key,
@@ -18,6 +20,7 @@ class StockMarketCheckoutPage extends StatelessWidget {
     required this.change,
     required this.logoUrl,
     required this.isUp,
+    required this.destinationAccount, // Add this param
   });
 
   List<FlSpot> generateRandomChartData() {
@@ -210,8 +213,19 @@ class StockMarketCheckoutPage extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () {
-                        print("Buying $name");
+                      onPressed: () async {
+                        // Replace with your actual source account logic
+                        const sourceAccount = "user_account_001";
+                        await FirebaseFirestore.instance
+                            .collection('stock_transactions')
+                            .add({
+                          'sourceAccount': sourceAccount,
+                          'destinationAccount': destinationAccount,
+                          'timestamp': FieldValue.serverTimestamp(),
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Transaction submitted!')),
+                        );
                       },
                       child: const Text("Buy",
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -273,3 +287,4 @@ class _OverviewItem extends StatelessWidget {
     );
   }
 }
+

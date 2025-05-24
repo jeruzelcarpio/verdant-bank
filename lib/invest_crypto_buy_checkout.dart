@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CryptoBuyCheckoutPage extends StatefulWidget {
   final String symbol;
@@ -27,6 +28,14 @@ class _CryptoBuyCheckoutPageState extends State<CryptoBuyCheckoutPage> {
       final php = double.tryParse(value.replaceAll(',', '')) ?? 0.0;
       final rate = double.tryParse(widget.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1.0;
       cryptoAmount = php / rate;
+    });
+  }
+
+  Future<void> _saveTransaction() async {
+    await FirebaseFirestore.instance.collection('crypto_transactions').add({
+      'sourceAccount': accountNumber,
+      'destinationAccount': widget.symbol,
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
@@ -173,8 +182,11 @@ class _CryptoBuyCheckoutPageState extends State<CryptoBuyCheckoutPage> {
                           borderRadius: BorderRadius.circular(24),
                         ),
                       ),
-                      onPressed: () {
-                        // Transaction logic or confirmation sheet
+                      onPressed: () async {
+                        await _saveTransaction();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Transaction saved!')),
+                        );
                       },
                       child: const Text("Buy"),
                     ),

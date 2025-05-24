@@ -14,7 +14,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.62%",
         "up": true,
         "logo":
-        "https://cdn-icons-png.flaticon.com/512/174/174872.png"
+        "https://cdn-icons-png.flaticon.com/512/174/174872.png",
+        "destinationAccount": "100001"
       },
       {
         "name": "Amazon",
@@ -23,7 +24,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "6.83%",
         "up": true,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/10096/10096351.png"
+        "https://cdn-icons-png.flaticon.com/128/10096/10096351.png",
+        "destinationAccount": "100002"
       },
       {
         "name": "Coca Cola",
@@ -32,7 +34,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.97%",
         "up": false,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/16183/16183588.png"
+        "https://cdn-icons-png.flaticon.com/128/16183/16183588.png",
+        "destinationAccount": "100003"
       },
       {
         "name": "PepsiCo",
@@ -41,7 +44,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.97%",
         "up": false,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/732/732236.png"
+        "https://cdn-icons-png.flaticon.com/128/732/732236.png",
+        "destinationAccount": "100004"
       },
       {
         "name": "Meta",
@@ -50,7 +54,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.62%",
         "up": true,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/6033/6033716.png"
+        "https://cdn-icons-png.flaticon.com/128/6033/6033716.png",
+        "destinationAccount": "100005"
       },
       {
         "name": "Uber",
@@ -59,7 +64,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.62%",
         "up": true,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/5969/5969323.png"
+        "https://cdn-icons-png.flaticon.com/128/5969/5969323.png",
+        "destinationAccount": "100006"
       },
       {
         "name": "Apple",
@@ -68,7 +74,8 @@ class StockMarketPage extends StatelessWidget {
         "change": "0.62%",
         "up": true,
         "logo":
-        "https://cdn-icons-png.flaticon.com/128/2175/2175370.png"
+        "https://cdn-icons-png.flaticon.com/128/2175/2175370.png",
+        "destinationAccount": "100007"
       },
     ];
 
@@ -117,6 +124,7 @@ class StockMarketPage extends StatelessWidget {
                         change: company["change"] as String,
                         isUp: company["up"] as bool,
                         logoUrl: company["logo"] as String,
+                        destinationAccount: company["destinationAccount"] as String,
                       ),
                     ),
                   );
@@ -192,3 +200,4 @@ class StockMarketPage extends StatelessWidget {
     );
   }
 }
+
