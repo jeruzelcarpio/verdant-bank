@@ -234,6 +234,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
                 child: SlideToConfirm(
                   sliderValue: _sliderValue,
                   onChanged: _handleSliderChange,
+                  info: {},
                 ),
               ),
           ],
