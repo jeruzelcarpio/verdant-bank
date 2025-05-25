@@ -183,7 +183,7 @@ class _HomePageState extends State<HomePage> {
         context,
         MaterialPageRoute(
           builder: (context) => PaybillsPage(
-            userAccount: account,
+            account: account,
             onUpdate: _updateAccount,
           ),
         ),
@@ -206,7 +206,12 @@ class _HomePageState extends State<HomePage> {
     } else if (action == 'Savings') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => SavingsPage()),
+        MaterialPageRoute(
+          builder: (context) => SavingsPage(
+            account: account,
+            onUpdate: _updateAccount,
+          ),
+        ),
       );
     } else if (action == 'Transactions') {
       Navigator.push(
@@ -504,4 +509,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-

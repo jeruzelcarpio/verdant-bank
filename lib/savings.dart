@@ -1,29 +1,19 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
-
-void main() {
-  runApp(const SavingsPage());
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:verdantbank/models/account.dart'; // Import Account model
 
 class SavingsPage extends StatelessWidget {
-  const SavingsPage({super.key});
+  final Account account; // Add account parameter
+  final VoidCallback? onUpdate; // Add callback for balance updates
+
+  const SavingsPage({super.key, required this.account, this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Alkansya',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF002019),
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFFB8FF5C),
-          secondary: const Color(0xFFB8FF5C),
-        ),
-      ),
-      home: const AlkansyaScreen(),
-    );
+    return AlkansyaScreen(account: account, onUpdate: onUpdate);
   }
 }
 
@@ -33,6 +23,7 @@ class Plan {
   double currentAmount;
   bool isCollected;
   final List<FlSpot> savingsHistory;
+  String? documentId; // Add document ID to track Firestore document
 
   Plan({
     required this.name,
@@ -40,10 +31,15 @@ class Plan {
     this.currentAmount = 0,
     this.isCollected = false,
     List<FlSpot>? savingsHistory,
+    this.documentId,
   }) : savingsHistory = savingsHistory ?? [const FlSpot(0, 0)];
 }
+
 class AlkansyaScreen extends StatefulWidget {
-  const AlkansyaScreen({super.key});
+  final Account account;
+  final VoidCallback? onUpdate;
+
+  const AlkansyaScreen({super.key, required this.account, this.onUpdate});
 
   @override
   State<AlkansyaScreen> createState() => _AlkansyaScreenState();
@@ -52,8 +48,63 @@ class AlkansyaScreen extends StatefulWidget {
 class _AlkansyaScreenState extends State<AlkansyaScreen> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey();
   final List<Plan> _plans = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _addNewPlan(String name, double goalAmount) {
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlansFromFirestore();
+  }
+
+  void _fetchPlansFromFirestore() async {
+    try {
+      // Query plans for this specific account
+      final snapshot = await _firestore
+          .collection('savingsPlans')
+          .where('accountNumber', isEqualTo: widget.account.accNumber)
+          .get();
+
+      final plans = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Plan(
+          name: data['name'] ?? '',
+          goalAmount: (data['goalAmount'] ?? 0).toDouble(),
+          currentAmount: (data['currentAmount'] ?? 0).toDouble(),
+          isCollected: data['isCollected'] ?? false,
+          savingsHistory: (data['savingsHistory'] as List<dynamic>?)
+              ?.map((point) => FlSpot(
+            (point['x'] ?? 0).toDouble(),
+            (point['y'] ?? 0).toDouble(),
+          ))
+              .toList() ?? [const FlSpot(0, 0)],
+          documentId: doc.id, // Store the document ID
+        );
+      }).toList();
+
+      setState(() {
+        _plans.clear();
+        _plans.addAll(plans);
+        // Rebuild the AnimatedList with proper item count
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_listKey.currentState != null) {
+            for (int i = 0; i < plans.length; i++) {
+              _listKey.currentState?.insertItem(i, duration: Duration.zero);
+            }
+          }
+        });
+      });
+    } catch (e) {
+      print('Error fetching plans: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading savings plans: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _addNewPlan(String name, double goalAmount) async {
     final upperName = name.toUpperCase();
     bool alreadyExists = _plans.any((plan) => plan.name == upperName);
 
@@ -61,11 +112,132 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       return; // Don't add invalid plans
     }
 
-    setState(() {
-      final newPlan = Plan(name: upperName, goalAmount: goalAmount);
-      _plans.insert(0, newPlan);
-      _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
-    });
+    try {
+      // Add to Firestore first
+      final docRef = await _firestore.collection('savingsPlans').add({
+        'name': upperName,
+        'goalAmount': goalAmount,
+        'currentAmount': 0,
+        'isCollected': false,
+        'savingsHistory': [{'x': 0, 'y': 0}],
+        'accountNumber': widget.account.accNumber, // Associate with account
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Then add to local state
+      setState(() {
+        final newPlan = Plan(
+          name: upperName,
+          goalAmount: goalAmount,
+          documentId: docRef.id,
+        );
+        _plans.insert(0, newPlan);
+        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully created savings plan: $upperName'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error adding plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _updatePlanInFirestore(Plan plan) async {
+    if (plan.documentId == null) return;
+
+    try {
+      await _firestore
+          .collection('savingsPlans')
+          .doc(plan.documentId)
+          .update({
+        'currentAmount': plan.currentAmount,
+        'isCollected': plan.isCollected,
+        'savingsHistory': plan.savingsHistory
+            .map((point) => {'x': point.x, 'y': point.y})
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Update account balance in Firestore and locally
+  Future<void> _updateAccountBalance(double amount) async {
+    try {
+      final accountQuery = await _firestore
+          .collection('accounts')
+          .where('accNumber', isEqualTo: widget.account.accNumber)
+          .get();
+
+      if (accountQuery.docs.isEmpty) {
+        throw Exception("Account not found.");
+      }
+
+      final accountRef = accountQuery.docs.first.reference;
+
+      await _firestore.runTransaction((transaction) async {
+        // Update balance in Firestore
+        transaction.update(accountRef, {
+          'accBalance': FieldValue.increment(-amount),
+        });
+
+        // Save savings transaction to Firestore
+        await _firestore.collection('transactions').add({
+          'type': 'Savings Deposit',
+          'sourceAccount': widget.account.accNumber,
+          'accounts': [widget.account.accNumber],
+          'dateTime': FieldValue.serverTimestamp(),
+          'amount': amount,
+          'remarks': 'Alkansya savings deposit',
+        });
+      });
+
+      // Update local balance
+      setState(() {
+        widget.account.accBalance -= amount;
+      });
+
+      // Call the update callback to refresh parent widgets
+      if (widget.onUpdate != null) widget.onUpdate!();
+    } catch (e) {
+      throw Exception("Failed to update account balance: $e");
+    }
+  }
+
+  void _deletePlanFromFirestore(Plan plan) async {
+    if (plan.documentId == null) return;
+
+    try {
+      await _firestore
+          .collection('savingsPlans')
+          .doc(plan.documentId)
+          .delete();
+    } catch (e) {
+      print('Error deleting plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _confirmDeletePlan(int index) {
@@ -87,6 +259,12 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
+                final plan = _plans[index];
+
+                // Delete from Firestore first
+                _deletePlanFromFirestore(plan);
+
+                // Then remove from local state
                 setState(() {
                   _plans.removeAt(index);
                   _listKey.currentState?.removeItem(
@@ -98,6 +276,13 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                     duration: const Duration(milliseconds: 300),
                   );
                 });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Successfully deleted savings plan: ${plan.name}'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF004D3C),
@@ -151,6 +336,60 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
             ),
             textAlign: TextAlign.center,
           ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004D3C),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showInsufficientFundsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFFFD73F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'INSUFFICIENT FUNDS',
+            style: TextStyle(
+              color: Color(0xFF004D3C),
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Text(
+            'Your current balance is ₱${widget.account.accBalance.toStringAsFixed(2)}. Please enter an amount within your available balance.',
+            style: const TextStyle(
+              color: Color(0xFF004D3C),
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004D3C),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: const Text('OK'),
+            ),
+          ],
         );
       },
     );
@@ -164,6 +403,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       _confirmDeletePlan(index);
     }
   }
+
   void _openPlanDetails(Plan plan, int index) {
     final TextEditingController amountController = TextEditingController();
     String? errorText;
@@ -205,6 +445,28 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                         icon: const Icon(Icons.delete_outline, color: Color(0xFFE5F0C0)),
                       )
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Display current account balance
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00392D),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Available Balance:',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                        Text(
+                          '₱${widget.account.accBalance.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   AspectRatio(
@@ -283,9 +545,10 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                     onPressed: goalReached
                         ? () {
                       setState(() => plan.isCollected = true);
+                      _updatePlanInFirestore(plan);
                       Navigator.of(ctx).pop();
                     }
-                        : () {
+                        : () async {
                       final input = amountController.text;
                       final amount = double.tryParse(input);
 
@@ -293,21 +556,42 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                         setModalState(() => errorText = 'Please input desired amount.');
                       } else if (amount == null || amount <= 0) {
                         setModalState(() => errorText = 'Amount must be greater than zero.');
+                      } else if (amount > widget.account.accBalance) {
+                        // Check against account balance instead of showing generic dialog
+                        setModalState(() => errorText = 'Amount exceeds available balance of ₱${widget.account.accBalance.toStringAsFixed(2)}.');
                       } else if ((plan.currentAmount + amount) > plan.goalAmount) {
                         setModalState(() =>
-                        errorText = 'Goal amount limit is PHP 100,000.');
+                        errorText = 'Amount exceeds goal. Maximum you can add: ₱${(plan.goalAmount - plan.currentAmount).toStringAsFixed(2)}');
                       } else {
-                        setState(() {
-                          plan.currentAmount += amount;
-                          plan.savingsHistory.add(FlSpot(
-                            plan.savingsHistory.length.toDouble(),
-                            plan.currentAmount,
-                          ));
-                        });
-                        setModalState(() {
-                          errorText = null;
-                          amountController.clear();
-                        });
+                        try {
+                          // Update account balance first
+                          await _updateAccountBalance(amount);
+
+                          // Then update the plan
+                          setState(() {
+                            plan.currentAmount += amount;
+                            plan.savingsHistory.add(FlSpot(
+                              plan.savingsHistory.length.toDouble(),
+                              plan.currentAmount,
+                            ));
+                          });
+                          _updatePlanInFirestore(plan);
+
+                          setModalState(() {
+                            errorText = null;
+                            amountController.clear();
+                          });
+
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Successfully saved ₱${amount.toStringAsFixed(2)} to ${plan.name}'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          setModalState(() => errorText = 'Failed to process savings: ${e.toString()}');
+                        }
                       }
                     },
                     child: Text(goalReached ? 'COLLECT SAVINGS' : 'SAVE NOW!'),
@@ -404,6 +688,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       ),
     );
   }
+
   void _openNewPlanDialog() {
     showDialog(
       context: context,
@@ -499,6 +784,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       },
     );
   }
+
   void _showReminderDialog() {
     showDialog(
       context: context,
@@ -526,17 +812,22 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
               ),
               SizedBox(height: 20),
               Text(
-                '1. Once an ‘Alkansya’ is created, it can only be deleted if and only if it has no money inside it.',
+                '1. Once an "Alkansya" is created, it can only be deleted if and only if it has no money inside it.',
                 style: TextStyle(color: Colors.white),
               ),
               SizedBox(height: 10),
               Text(
-                '2. After moving money into the ‘Alkansya’, the only way to retrieve the money is to reach its goal.',
+                '2. After moving money into the "Alkansya", the only way to retrieve the money is to reach its goal.',
                 style: TextStyle(color: Colors.white),
               ),
               SizedBox(height: 10),
               Text(
-                '3. Think carefully before putting money inside the ‘Alkansya’ to avoid any mistakes.',
+                '3. Think carefully before putting money inside the "Alkansya" to avoid any mistakes.',
+                style: TextStyle(color: Colors.white),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '4. Money will be deducted from your account balance when saving.',
                 style: TextStyle(color: Colors.white),
               ),
             ],
@@ -549,6 +840,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF001F1A), // Dark background
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFB8FF5C)),
@@ -571,20 +863,61 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
           const SizedBox(width: 12),
         ],
       ),
-      body: AnimatedList(
-        key: _listKey,
-        initialItemCount: _plans.length,
-        itemBuilder: (context, index, animation) {
-          return SlideTransition(
-            position: animation.drive(
-              Tween<Offset>(
-                begin: const Offset(1, 0),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeOut)),
+      body: Column(
+        children: [
+          // Account balance display at the top
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00392D),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: _buildPlanTile(_plans[index], index),
-          );
-        },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Available Balance',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    Text(
+                      '₱${widget.account.accBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  widget.account.accNumber,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedList(
+              key: _listKey,
+              initialItemCount: _plans.length,
+              itemBuilder: (context, index, animation) {
+                return SlideTransition(
+                  position: animation.drive(
+                    Tween<Offset>(
+                      begin: const Offset(1, 0),
+                      end: Offset.zero,
+                    ).chain(CurveTween(curve: Curves.easeOut)),
+                  ),
+                  child: _buildPlanTile(_plans[index], index),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openNewPlanDialog,
