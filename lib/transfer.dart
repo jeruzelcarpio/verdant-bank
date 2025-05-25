@@ -41,6 +41,10 @@ class _TransferPageState extends State<TransferPage> {
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.lighterGreen),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           'TRANSFER',
           style: TextStyle(
@@ -127,6 +131,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
   Map<String, String>? _confirmationInfo;
+  String? _lastRecipientName;
 
   String? _numberErrorText;
   bool _showConfirmationSlider = false;
@@ -257,6 +262,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
       final recipientFirstName = recipientData['accFirstName'] ?? 'Unknown';
       final recipientLastName = recipientData['accLastName'] ?? 'Unknown';
       final recipientName = '$recipientFirstName $recipientLastName';
+      _lastRecipientName = recipientName;
 
       if (recipientName.trim() == 'Unknown Unknown') {
         _showErrorDialog("Recipient name is missing in the account details.");
@@ -272,64 +278,59 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
           builder: (context) => OTPConfirmationScreen(
             phoneNumber: widget.account.accPhoneNum,
             otpCode: "123456", // Example OTP code
-            onConfirm: () async {
-              try {
-                // Perform the transaction
-                final recipientAccountRef = recipientSnapshot.docs.first.reference;
-                print("Recipient snapshot: $recipientAccountRef");
+              onConfirm: () async {
+                try {
+                  final recipientAccountRef = recipientSnapshot.docs.first.reference;
 
-                await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
-                  // Fetch the sender's account document reference
-                  final senderAccountQuery = await firestore.FirebaseFirestore.instance
-                      .collection('accounts')
-                      .where('accNumber', isEqualTo: widget.account.accNumber)
-                      .get();
+                  // Update balances atomically
+                  await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
+                    final senderAccountQuery = await firestore.FirebaseFirestore.instance
+                        .collection('accounts')
+                        .where('accNumber', isEqualTo: widget.account.accNumber)
+                        .get();
 
-                  if (senderAccountQuery.docs.isEmpty) {
-                    throw Exception("Sender account not found.");
-                  }
+                    if (senderAccountQuery.docs.isEmpty) {
+                      throw Exception("Sender account not found.");
+                    }
 
-                  final senderAccountRef = senderAccountQuery.docs.first.reference;
+                    final senderAccountRef = senderAccountQuery.docs.first.reference;
 
-                  // Update balances
-                  transaction.update(senderAccountRef, {
-                    'accBalance': firestore.FieldValue.increment(-amount),
+                    transaction.update(senderAccountRef, {
+                      'accBalance': firestore.FieldValue.increment(-amount),
+                    });
+
+                    transaction.update(recipientAccountRef, {
+                      'accBalance': firestore.FieldValue.increment(amount),
+                    });
                   });
 
-                  transaction.update(recipientAccountRef, {
-                    'accBalance': firestore.FieldValue.increment(amount),
-                  });
-
-                  // Save transaction to Firestore
-                  await firestore.FirebaseFirestore.instance.collection('transactions').add({
+                  // Now create the transaction document and get its reference
+                  final transactionRef = await firestore.FirebaseFirestore.instance.collection('transactions').add({
                     'type': 'Transfer',
                     'sourceAccount': widget.account.accNumber,
                     'destinationAccount': accountNumberController.text,
-                    'accounts': [widget.account.accNumber, accountNumberController.text], // <-- add this line
+                    'accounts': [widget.account.accNumber, accountNumberController.text],
                     'dateTime': firestore.FieldValue.serverTimestamp(),
                     'amount': amount,
                     'remarks': remarksController.text,
                   });
-                });
 
-                // Update local balance
-                setState(() {
-                  widget.account.accBalance -= amount;
-                  _sliderValue = 0.0;
-                  _showConfirmationSlider = false;
-                  widget.onUpdate();
-                });
+                  setState(() {
+                    widget.account.accBalance -= amount;
+                    _sliderValue = 0.0;
+                    _showConfirmationSlider = false;
+                    widget.onUpdate();
+                  });
 
-                // Navigate to receipt
-                _navigateToReceipt(amount);
-              } catch (e) {
-                _showErrorDialog("Failed to process transaction: $e");
-              } finally {
-                setState(() {
-                  _isTransactionInProgress = false;
-                });
-              }
-            },
+                  _navigateToReceipt(amount, transactionRef.id);
+                } catch (e) {
+                  _showErrorDialog("Failed to process transaction: $e");
+                } finally {
+                  setState(() {
+                    _isTransactionInProgress = false;
+                  });
+                }
+              },
             onResend: () {
               print("OTP Resent");
             },
@@ -349,7 +350,8 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
   }
 
   // Navigate to the transaction receipt screen
-  void _navigateToReceipt(double amount) {
+  void _navigateToReceipt(double amount, String transactionId) {
+    final GlobalKey receiptKey = GlobalKey();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -359,27 +361,33 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
             body: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
-                child: TransactionReceipt(
-                  transactionId: "TR-${DateTime.now().millisecondsSinceEpoch}",
-                  transactionDateTime: DateTime.now(),
-                  amountText: "₱${amount.toStringAsFixed(2)}",
-                  selectedNetwork: null,
-                  mobileNumber: null,
-                  merchant: null,
-                  sourceAccount: widget.account.accNumber,
-                  destinationAccount: accountNumberController.text,
-                  onSave: () {
-                    print("Receipt saved!");
-                  },
-                  onDone: () {
-                    // Clear navigation stack and return to HomePage
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/home',
-                          (route) => false,
-                    );
-                  },
-                ),
+                child:
+                RepaintBoundary(
+                  key: receiptKey, // Key for screenshot
+                  child: TransactionReceipt(
+                    transactionId: transactionId, // Use Firestore doc ID
+                    transactionDateTime: DateTime.now(),
+                    amountText: "₱${amount.toStringAsFixed(2)}",
+                    selectedNetwork: null,
+                    mobileNumber: null,
+                    merchant: null,
+                    sourceAccount: widget.account.accNumber,
+                    sourceAccountName: "${widget.account.accFirstName} ${widget.account.accLastName}",
+                    destinationAccount: accountNumberController.text,
+                    destinationAccountName: _lastRecipientName,
+                    onSave: () {
+                      print("Receipt saved!");
+                    },
+                    onDone: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                            (route) => false,
+                      );
+                    },
+                  ),
+                )
+
               ),
             ),
           ),
@@ -410,6 +418,10 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
     return Scaffold(
       backgroundColor: AppColors.darkGreen,
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppColors.lighterGreen),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Text(
           "TRANSFER",
           style: TextStyle(

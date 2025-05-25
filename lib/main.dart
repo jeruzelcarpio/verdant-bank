@@ -124,7 +124,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
-      home: HomePage(userAccount: userAccount),
+      home: HomePage(userAccount: userAccount), // change to SignInScreen() or (userAccount: userAccount) if you want to start with the sign-in screen
       onGenerateRoute: (settings) {
         if (settings.name == '/home') {
           return MaterialPageRoute(
