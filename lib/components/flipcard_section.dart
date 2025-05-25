@@ -33,7 +33,6 @@ class _FlipCardSectionState extends State<FlipCardSection> {
               key: const ValueKey('front'),
               savingAccountNum: widget.accountData.accNumber,
               accountBalance: widget.accountData.accBalance,
-              showBack: false,
             ),
             back: CardIcon(
               key: const ValueKey('back'),

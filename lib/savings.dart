@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:verdantbank/models/account.dart'; // Import Account model
 
+
 class SavingsPage extends StatelessWidget {
   final Account account; // Add account parameter
   final VoidCallback? onUpdate; // Add callback for balance updates
@@ -13,7 +14,8 @@ class SavingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlkansyaScreen(account: account, onUpdate: onUpdate);
+    return const AlkansyaScreen();
+
   }
 }
 
@@ -111,7 +113,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
     if (alreadyExists || goalAmount > 100000) {
       return; // Don't add invalid plans
     }
-
+    
     try {
       // Add to Firestore first
       final docRef = await _firestore.collection('savingsPlans').add({
@@ -401,6 +403,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       _showWarningDialog();
     } else {
       _confirmDeletePlan(index);
+      _deletePlanFromFirestore(plan.name);
     }
   }
 

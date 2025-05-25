@@ -147,6 +147,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
   Map<String, String>? _confirmationInfo;
   String? _lastRecipientName;
 
+
   String? _numberErrorText;
   bool _showConfirmationSlider = false;
   double _sliderValue = 0.0;
@@ -167,7 +168,6 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
       curve: Curves.easeOut,
     ));
   }
-
 
 
   @override
@@ -512,6 +512,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
                                     fontFamily: 'WorkSans',
                                     fontSize: 14,
                                   ),
+
                                   errorText: _numberErrorText,
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),
@@ -541,6 +542,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
                                     fontFamily: 'WorkSans',
                                     fontSize: 14,
                                   ),
+
                                   errorText: _numberErrorText,
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),

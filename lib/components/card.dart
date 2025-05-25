@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:verdantbank/theme/colors.dart';
 
+
 String formatAccountNumber(String input) {
   if (input.length < 10) return input;
   final part1 = input.substring(0, 4);
@@ -20,6 +21,7 @@ class CardIcon extends StatelessWidget {
     required this.savingAccountNum,
     required this.accountBalance,
     this.showBack = false,
+
   }) : super(key: key);
 
   @override
@@ -47,6 +49,16 @@ class CardIcon extends StatelessWidget {
               ],
               stops: [0.0, 1.0],
             ),
+          ),
+        ),
+        // Card content
+        Container(
+          width: double.infinity,
+          height: 185,
+          margin: const EdgeInsets.all(0.5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            color: Colors.transparent,
           ),
         ),
         // Card content
