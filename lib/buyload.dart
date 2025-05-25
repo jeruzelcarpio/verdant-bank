@@ -8,6 +8,11 @@ import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'theme/colors.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+
+import 'package:verdantbank/api/send_otp.dart';
+
 import 'main.dart'; // Import userAccount
 
 class BuyLoadPage extends StatefulWidget {
@@ -70,56 +75,97 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
     return null;
   }
 
-  void _executeLoadTransaction() {
+  void _executeLoadTransaction() async {
     if (_isTransactionInProgress) return;
     setState(() {
       _isTransactionInProgress = true;
     });
 
     double amount = _getSelectedAmount()!;
-    setState(() {
-      widget.userAccount.accBalance -= amount;
-      _sliderValue = 0.0;
-      _showConfirmationSlider = false;
-    });
 
-    /*
-    widget.userAccount.addTransaction(
-      Transaction(
-        type: "Bought Load",
-        recipient: _mobileNumberController.text + " (${selectedNetwork!})",
-        dateTime: _getCurrentDateTimeString(),
-        amount: amount,
-        isAdded: false,
-      ),
-    );
-    */
+    try {
+      // Update balance in Firestore and locally (copied from PayBills logic)
+      final senderAccountQuery = await firestore.FirebaseFirestore.instance
+          .collection('accounts')
+          .where('accNumber', isEqualTo: widget.userAccount.accNumber)
+          .get();
 
+      if (senderAccountQuery.docs.isEmpty) {
+        throw Exception("Account not found.");
+      }
 
-    if (widget.onUpdate != null) widget.onUpdate!();
+      final senderAccountRef = senderAccountQuery.docs.first.reference;
+
+      await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
+        // Update balance in Firestore
+        transaction.update(senderAccountRef, {
+          'accBalance': firestore.FieldValue.increment(-amount),
+        });
+
+        // Save load transaction to Firestore
+        await firestore.FirebaseFirestore.instance.collection('transactions').add({
+          'type': 'Load Purchase',
+          'network': selectedNetwork,
+          'mobileNumber': _mobileNumberController.text,
+          'sourceAccount': widget.userAccount.accNumber,
+          'accounts': [widget.userAccount.accNumber], // For queries
+          'dateTime': firestore.FieldValue.serverTimestamp(),
+          'amount': amount,
+        });
+      });
+
+      // Update local balance
+      setState(() {
+        widget.userAccount.accBalance -= amount;
+        _sliderValue = 0.0;
+        _showConfirmationSlider = false;
+      });
+
+      // Call the update callback to refresh parent widgets
+      if (widget.onUpdate != null) widget.onUpdate!();
+
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => OTPConfirmationScreen(
-          phoneNumber: widget.userAccount.accPhoneNum,
-          otpCode: "123456",
-          onConfirm: () {
+          email: widget.userAccount.accEmail,
+          onSuccess: () async {
             Navigator.pop(context);
             _navigateToReceipt(amount);
           },
-          onResend: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("New OTP code sent")),
-            );
+          onResend: () async {
+            final newOtp = generateOtp();
+            await sendOtpToEmail(widget.userAccount.accEmail, newOtp);
           },
+
         ),
-      ),
-    ).then((_) {
+      ).then((_) {
+        setState(() {
+          _isTransactionInProgress = false;
+        });
+      });
+    } catch (e) {
+      // Show error dialog if Firestore update fails
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Error"),
+          content: Text("Failed to process load purchase: $e"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("OK"),
+            ),
+          ],
+        ),
+      );
       setState(() {
         _isTransactionInProgress = false;
+        _showConfirmationSlider = false;
+        _sliderValue = 0.0;
       });
-    });
+    }
   }
 
   void _navigateToReceipt(double amount) {

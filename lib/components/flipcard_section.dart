@@ -36,8 +36,9 @@ class _FlipCardSectionState extends State<FlipCardSection> {
             ),
             back: CardIcon(
               key: const ValueKey('back'),
-              savingAccountNum: "BACK OF CARD",
+              savingAccountNum: widget.accountData.accNumber,
               accountBalance: widget.accountData.accBalance,
+              showBack: true,
             ),
           ),
         ),
