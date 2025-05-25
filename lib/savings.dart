@@ -23,6 +23,7 @@ class Plan {
   double currentAmount;
   bool isCollected;
   final List<FlSpot> savingsHistory;
+  String? documentId; // Add document ID to track Firestore document
 
   Plan({
     required this.name,
@@ -30,6 +31,7 @@ class Plan {
     this.currentAmount = 0,
     this.isCollected = false,
     List<FlSpot>? savingsHistory,
+    this.documentId,
   }) : savingsHistory = savingsHistory ?? [const FlSpot(0, 0)];
 }
 
@@ -55,26 +57,54 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
   }
 
   void _fetchPlansFromFirestore() async {
-    final snapshot = await _firestore.collection('savingsPlans').get();
-    final plans = snapshot.docs.map((doc) {
-      final data = doc.data();
-      return Plan(
-        name: data['name'],
-        goalAmount: data['goalAmount'],
-        currentAmount: data['currentAmount'],
-        isCollected: data['isCollected'],
-        savingsHistory: (data['savingsHistory'] as List<dynamic>)
-            .map((point) => FlSpot(point['x'], point['y']))
-            .toList(),
-      );
-    }).toList();
+    try {
+      // Query plans for this specific account
+      final snapshot = await _firestore
+          .collection('savingsPlans')
+          .where('accountNumber', isEqualTo: widget.account.accNumber)
+          .get();
 
-    setState(() {
-      _plans.addAll(plans);
-    });
+      final plans = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Plan(
+          name: data['name'] ?? '',
+          goalAmount: (data['goalAmount'] ?? 0).toDouble(),
+          currentAmount: (data['currentAmount'] ?? 0).toDouble(),
+          isCollected: data['isCollected'] ?? false,
+          savingsHistory: (data['savingsHistory'] as List<dynamic>?)
+              ?.map((point) => FlSpot(
+            (point['x'] ?? 0).toDouble(),
+            (point['y'] ?? 0).toDouble(),
+          ))
+              .toList() ?? [const FlSpot(0, 0)],
+          documentId: doc.id, // Store the document ID
+        );
+      }).toList();
+
+      setState(() {
+        _plans.clear();
+        _plans.addAll(plans);
+        // Rebuild the AnimatedList with proper item count
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_listKey.currentState != null) {
+            for (int i = 0; i < plans.length; i++) {
+              _listKey.currentState?.insertItem(i, duration: Duration.zero);
+            }
+          }
+        });
+      });
+    } catch (e) {
+      print('Error fetching plans: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading savings plans: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _addNewPlan(String name, double goalAmount) {
+  void _addNewPlan(String name, double goalAmount) async {
     final upperName = name.toUpperCase();
     bool alreadyExists = _plans.any((plan) => plan.name == upperName);
 
@@ -82,37 +112,70 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       return; // Don't add invalid plans
     }
 
-    setState(() {
-      final newPlan = Plan(name: upperName, goalAmount: goalAmount);
-      _plans.insert(0, newPlan);
-      _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
-    });
+    try {
+      // Add to Firestore first
+      final docRef = await _firestore.collection('savingsPlans').add({
+        'name': upperName,
+        'goalAmount': goalAmount,
+        'currentAmount': 0,
+        'isCollected': false,
+        'savingsHistory': [{'x': 0, 'y': 0}],
+        'accountNumber': widget.account.accNumber, // Associate with account
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-    _firestore.collection('savingsPlans').add({
-      'name': upperName,
-      'goalAmount': goalAmount,
-      'currentAmount': 0,
-      'isCollected': false,
-      'savingsHistory': [{'x': 0, 'y': 0}],
-    });
+      // Then add to local state
+      setState(() {
+        final newPlan = Plan(
+          name: upperName,
+          goalAmount: goalAmount,
+          documentId: docRef.id,
+        );
+        _plans.insert(0, newPlan);
+        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully created savings plan: $upperName'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('Error adding plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _updatePlanInFirestore(Plan plan) {
-    _firestore
-        .collection('savingsPlans')
-        .where('name', isEqualTo: plan.name)
-        .get()
-        .then((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        snapshot.docs.first.reference.update({
-          'currentAmount': plan.currentAmount,
-          'isCollected': plan.isCollected,
-          'savingsHistory': plan.savingsHistory
-              .map((point) => {'x': point.x, 'y': point.y})
-              .toList(),
-        });
-      }
-    });
+  void _updatePlanInFirestore(Plan plan) async {
+    if (plan.documentId == null) return;
+
+    try {
+      await _firestore
+          .collection('savingsPlans')
+          .doc(plan.documentId)
+          .update({
+        'currentAmount': plan.currentAmount,
+        'isCollected': plan.isCollected,
+        'savingsHistory': plan.savingsHistory
+            .map((point) => {'x': point.x, 'y': point.y})
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Update account balance in Firestore and locally
@@ -158,16 +221,23 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
     }
   }
 
-  void _deletePlanFromFirestore(String name) {
-    _firestore
-        .collection('savingsPlans')
-        .where('name', isEqualTo: name)
-        .get()
-        .then((snapshot) {
-      for (var doc in snapshot.docs) {
-        doc.reference.delete();
-      }
-    });
+  void _deletePlanFromFirestore(Plan plan) async {
+    if (plan.documentId == null) return;
+
+    try {
+      await _firestore
+          .collection('savingsPlans')
+          .doc(plan.documentId)
+          .delete();
+    } catch (e) {
+      print('Error deleting plan: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting savings plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _confirmDeletePlan(int index) {
@@ -189,6 +259,12 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
+                final plan = _plans[index];
+
+                // Delete from Firestore first
+                _deletePlanFromFirestore(plan);
+
+                // Then remove from local state
                 setState(() {
                   _plans.removeAt(index);
                   _listKey.currentState?.removeItem(
@@ -200,6 +276,13 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                     duration: const Duration(milliseconds: 300),
                   );
                 });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Successfully deleted savings plan: ${plan.name}'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF004D3C),
@@ -253,6 +336,17 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
             ),
             textAlign: TextAlign.center,
           ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004D3C),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: const Text('OK'),
+            ),
+          ],
         );
       },
     );
@@ -307,7 +401,6 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       _showWarningDialog();
     } else {
       _confirmDeletePlan(index);
-      _deletePlanFromFirestore(plan.name);
     }
   }
 
