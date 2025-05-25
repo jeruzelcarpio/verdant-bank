@@ -32,12 +32,13 @@ class _AccountCompletionScreenState extends State<AccountCompletionScreen> {
     String accNumber = '';
     
     while (!isUnique) {
-      // Generate a random number in the format "XXXX XXX XXXX"
+      // Generate a random number in the format "XXXXXXXXXXXX" (no spaces)
       final part1 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
       final part2 = (100 + random.nextInt(900)).toString();   // 100-999
       final part3 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
       
-      accNumber = "$part1 $part2 $part3";
+      // Concatenate without spaces
+      accNumber = "$part1$part2$part3";
       
       // Check if this account number already exists
       final QuerySnapshot query = await FirebaseFirestore.instance
