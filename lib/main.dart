@@ -4,6 +4,7 @@ import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'alixScreens/signIn_screen.dart';
+import 'package:verdantbank/services/user_session.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
@@ -19,10 +20,6 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'dart:math';
 import 'package:verdantbank/components/flipcard_section.dart';
-
-const userAccountNumber = '1234567891';
-const userAccountEmail = 'franzperez1073@gmail.com';
-
 
 Future<void> createAccount({
   required String accFirstName,
@@ -53,8 +50,6 @@ Future<void> createAccount({
 
 }
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -64,31 +59,36 @@ void main() async {
 class AccountLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Account?>(
-      future: fetchAccount(userAccountEmail),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+    return FutureBuilder<String?>(
+      future: UserSession().getUserEmail(),
+      builder: (context, emailSnapshot) {
+        if (!emailSnapshot.hasData || emailSnapshot.data == null) {
           return MaterialApp(
-            home: Scaffold(
-              backgroundColor: AppColors.darkGreen,
-              body: Center(child: CircularProgressIndicator()),
-            ),
+            home: SignInScreen(),
           );
         }
-        if (!snapshot.hasData || snapshot.data == null) {
-          return MaterialApp(
-            home: Scaffold(
-              backgroundColor: AppColors.darkGreen,
-              body: Center(
-                child: Text(
-                  'Wahoo',
-                  style: TextStyle(color: Colors.red),
+        
+        return FutureBuilder<Account?>(
+          future: fetchAccount(emailSnapshot.data!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return MaterialApp(
+                home: Scaffold(
+                  backgroundColor: AppColors.darkGreen,
+                  body: Center(child: CircularProgressIndicator()),
                 ),
-              ),
-            ),
-          );
-        }
-        return MyApp(userAccount: snapshot.data!);
+              );
+            }
+            
+            if (!snapshot.hasData || snapshot.data == null) {
+              return MaterialApp(
+                home: SignInScreen(),
+              );
+            }
+            
+            return MyApp(userAccount: snapshot.data!);
+          },
+        );
       },
     );
   }

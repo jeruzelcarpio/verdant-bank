@@ -98,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // Use the UserSession class:
-      UserSession.login(email);
+      await UserSession().saveUserEmail(email);
       
       // Navigate to home screen
       if (mounted) {
