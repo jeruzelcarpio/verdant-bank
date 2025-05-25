@@ -705,6 +705,7 @@ class PayBillReceiptPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => HomePage(userAccount: account), // Use 'account'
+
                   ),
                       (route) => false,
                 );

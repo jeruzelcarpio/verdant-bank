@@ -266,4 +266,3 @@ class TransactionRow extends StatelessWidget {
     );
   }
 }
-

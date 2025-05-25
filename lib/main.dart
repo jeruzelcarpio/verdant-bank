@@ -1,9 +1,10 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/transactions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'alixScreens/signIn_screen.dart';
+import 'package:verdantbank/services/user_session.dart';
 import 'transfer.dart';
 import 'paybills.dart';
 import 'buyload.dart';
@@ -19,10 +20,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'dart:math';
 import 'package:verdantbank/components/flipcard_section.dart';
-
-const userAccountNumber = '1234567891';
-const userAccountEmail = 'franzperez1073@gmail.com';
-
+import 'package:verdantbank/account_details_screen.dart';
 
 Future<void> createAccount({
   required String accFirstName,
@@ -62,31 +60,36 @@ void main() async {
 class AccountLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Account?>(
-      future: fetchAccount(userAccountEmail),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+    return FutureBuilder<String?>(
+      future: UserSession().getUserEmail(),
+      builder: (context, emailSnapshot) {
+        if (!emailSnapshot.hasData || emailSnapshot.data == null) {
           return MaterialApp(
-            home: Scaffold(
-              backgroundColor: AppColors.darkGreen,
-              body: Center(child: CircularProgressIndicator()),
-            ),
+            home: SignInScreen(),
           );
         }
-        if (!snapshot.hasData || snapshot.data == null) {
-          return MaterialApp(
-            home: Scaffold(
-              backgroundColor: AppColors.darkGreen,
-              body: Center(
-                child: Text(
-                  'Wahoo',
-                  style: TextStyle(color: Colors.red),
+        
+        return FutureBuilder<Account?>(
+          future: fetchAccount(emailSnapshot.data!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return MaterialApp(
+                home: Scaffold(
+                  backgroundColor: AppColors.darkGreen,
+                  body: Center(child: CircularProgressIndicator()),
                 ),
-              ),
-            ),
-          );
-        }
-        return MyApp(userAccount: snapshot.data!);
+              );
+            }
+            
+            if (!snapshot.hasData || snapshot.data == null) {
+              return MaterialApp(
+                home: SignInScreen(),
+              );
+            }
+            
+            return MyApp(userAccount: snapshot.data!);
+          },
+        );
       },
     );
   }
@@ -109,10 +112,11 @@ Future<Account?> fetchAccount(String userAccountEmail) async {
   return null;
 }
 
+// Update MyApp class to accept a userAccount parameter
 class MyApp extends StatelessWidget {
   final Account userAccount;
-
-  const MyApp({super.key, required this.userAccount});
+  
+  const MyApp({Key? key, required this.userAccount}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -122,9 +126,14 @@ class MyApp extends StatelessWidget {
         fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
-      home: HomePage(userAccount: userAccount), // change to SignInScreen() or (userAccount: userAccount) if you want to start with the sign-in screen
+      // Use the HomePage as the home screen instead of SignInScreen 
+      // since we already have a user account
+      home: HomePage(userAccount: userAccount),
+      routes: {
+        '/signin': (context) => SignInScreen(),
+      },
       onGenerateRoute: (settings) {
-        if (settings.name == '/home') {
+        if (settings.name == '/home' || settings.name == '//home') {
           return MaterialPageRoute(
             builder: (context) => HomePage(userAccount: userAccount),
           );
@@ -135,9 +144,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// Update HomePage to accept a userAccount parameter
 class HomePage extends StatefulWidget {
   final Account userAccount;
-
+  
   const HomePage({super.key, required this.userAccount});
 
   @override
@@ -290,16 +300,26 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       Row(
-                        children: const [
-                          Padding(
-                            padding: EdgeInsets.all(10),
-                            child: Icon(
-                              Icons.person,
-                              size: 16,
-                              color: AppColors.lighterGreen,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AccountDetailsScreen(userAccount: accountData),
+                                ),
+                              );
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.person,
+                                size: 16,
+                                color: AppColors.lighterGreen,
+                              ),
                             ),
                           ),
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.all(10),
                             child: Icon(
                               Icons.notifications,
@@ -507,3 +527,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

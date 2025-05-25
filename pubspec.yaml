@@ -35,8 +35,10 @@ dependencies:
   percent_indicator: ^4.2.2
   intl: ^0.19.0
   font_awesome_flutter: ^10.0.0
-  firebase_core: ^2.24.2
+  firebase_core: ^2.32.0
   cloud_firestore: ^4.13.6
+  firebase_auth: ^4.15.0  # Use the latest version
+  shared_preferences: ^2.2.2  # Use latest version
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -46,7 +48,9 @@ dependencies:
   smooth_page_indicator: ^1.0.0
   image_picker: ^1.0.7
   permission_handler: ^11.3.0
-  cloud_functions: ^4.5.5
+  mailer: ^6.4.1
+  cloud_functions: ^4.7.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/verify_email_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class GettingStartedScreen extends StatelessWidget {
+class GettingStartedScreen extends StatefulWidget {
   const GettingStartedScreen({super.key});
+
+  @override
+  State<GettingStartedScreen> createState() => _GettingStartedScreenState();
+}
+
+class _GettingStartedScreenState extends State<GettingStartedScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +139,7 @@ class GettingStartedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               TextField(
+                controller: _emailController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Email Address',
@@ -138,6 +156,8 @@ class GettingStartedScreen extends StatelessWidget {
                       color: AppColors.lighterGreen,
                     ),
                   ),
+                  errorText: _errorMessage,
+                  errorStyle: const TextStyle(color: Colors.redAccent),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 16,
@@ -221,20 +241,82 @@ class GettingStartedScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(40),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                            builder: (context) => VerifyEmailScreen(
-                                email: 'verdantbank@gmail.com', // Replace with actual email from TextField
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              final email = _emailController.text.trim();
+
+                              if (email.isEmpty) {
+                                setState(() {
+                                  _errorMessage = 'Please enter an email address';
+                                });
+                                return;
+                              }
+
+                              // Basic email validation
+                              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                              if (!emailRegex.hasMatch(email)) {
+                                setState(() {
+                                  _errorMessage = 'Please enter a valid email address';
+                                });
+                                return;
+                              }
+
+                              setState(() {
+                                _isLoading = true;
+                                _errorMessage = null;
+                              });
+
+                              try {
+                                // Create initial document in accounts collection with just the email
+                                await FirebaseFirestore.instance
+                                    .collection('accounts')
+                                    .doc(email)
+                                    .set({
+                                      'accEmail': email,
+                                      'registrationStarted': DateTime.now(),
+                                      'registrationCompleted': false,
+                                    }, SetOptions(merge: true));
+                                
+                                await Future.delayed(const Duration(milliseconds: 500)); // Simulated check
+
+                                if (mounted) {
+                                  // Navigate to next screen with email only
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => VerifyEmailScreen(
+                                        email: email,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                setState(() {
+                                  _errorMessage = 'An error occurred. Please try again.';
+                                });
+                                print('Error creating initial account document: $e');
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _isLoading = false;
+                                  });
+                                }
+                              }
+                            },
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.darkGreen,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Next',
+                              style: TextStyle(color: AppColors.darkGreen),
                             ),
-                            ),
-                        );
-                        },
-                      child: const Text(
-                        'Next',
-                        style: TextStyle(color: AppColors.darkGreen),
-                      ),
                     ),
                   ),
                 ],
