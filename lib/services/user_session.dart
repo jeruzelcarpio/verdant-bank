@@ -34,4 +34,15 @@ class UserSession {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
+
+  // Clear specific user data
+  Future<void> clearUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_email');
+    // Remove any other user-related data you might be storing
+    // For example:
+    // await prefs.remove('user_id');
+    // await prefs.remove('user_name');
+    // etc.
+  }
 }

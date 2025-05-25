@@ -20,6 +20,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'dart:math';
 import 'package:verdantbank/components/flipcard_section.dart';
+import 'package:verdantbank/account_details_screen.dart';
 
 Future<void> createAccount({
   required String accFirstName,
@@ -286,16 +287,26 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       Row(
-                        children: const [
-                          Padding(
-                            padding: EdgeInsets.all(10),
-                            child: Icon(
-                              Icons.person,
-                              size: 16,
-                              color: AppColors.lighterGreen,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => AccountDetailsScreen(userAccount: accountData),
+                                ),
+                              );
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.person,
+                                size: 16,
+                                color: AppColors.lighterGreen,
+                              ),
                             ),
                           ),
-                          Padding(
+                          const Padding(
                             padding: EdgeInsets.all(10),
                             child: Icon(
                               Icons.notifications,
