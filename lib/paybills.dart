@@ -8,14 +8,14 @@ import 'package:verdantbank/components/slide_to_confirm.dart';
 import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'main.dart'; // <-- Import userAccount
 
-
 class PaybillsPage extends StatefulWidget {
-  final Account userAccount; // Add userAccount parameter
+  final Account account; // Renamed from userAccount to account
   final VoidCallback? onUpdate;
 
-  const PaybillsPage({Key? key, required this.userAccount, this.onUpdate}) : super(key: key);
+  const PaybillsPage({Key? key, required this.account, this.onUpdate}) : super(key: key);
 
   @override
   _PaybillsPageState createState() => _PaybillsPageState();
@@ -27,7 +27,7 @@ class _PaybillsPageState extends State<PaybillsPage> {
       context,
       MaterialPageRoute(
         builder: (context) => PayBillWidget(
-          account: widget.userAccount, // Use widget.userAccount
+          account: widget.account, // Use widget.account
           billType: billType,
           onUpdate: widget.onUpdate,
         ),
@@ -556,38 +556,85 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
     );
   }
 
-  void _processPayment() {
+  void _processPayment() async {
     if (_isProcessing) return;
     setState(() {
       _isProcessing = true;
     });
 
-    /*
-    widget.account.addTransaction(
-      Transaction(
-        type: "Sent To",
-        recipient: widget.company,
-        dateTime: _getCurrentDateTimeString(),
-        amount: widget.amount,
-        isAdded: false,
-      ),
-    );
+    try {
+      // Update balance in Firestore and locally (similar to transfer logic)
+      final senderAccountQuery = await firestore.FirebaseFirestore.instance
+          .collection('accounts')
+          .where('accNumber', isEqualTo: widget.account.accNumber)
+          .get();
 
-     */
-    if (widget.onUpdate != null) widget.onUpdate!();
+      if (senderAccountQuery.docs.isEmpty) {
+        throw Exception("Account not found.");
+      }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PayBillReceiptPage(
-          billType: widget.billType,
-          company: widget.company,
-          amount: widget.amount,
-          remarks: widget.remarks,
-          account: widget.account,
+      final senderAccountRef = senderAccountQuery.docs.first.reference;
+
+      await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
+        // Update balance in Firestore
+        transaction.update(senderAccountRef, {
+          'accBalance': firestore.FieldValue.increment(-widget.amount),
+        });
+
+        // Save bill payment transaction to Firestore
+        await firestore.FirebaseFirestore.instance.collection('transactions').add({
+          'type': 'Bill Payment',
+          'billType': widget.billType,
+          'company': widget.company,
+          'sourceAccount': widget.account.accNumber,
+          'accounts': [widget.account.accNumber], // For queries
+          'dateTime': firestore.FieldValue.serverTimestamp(),
+          'amount': widget.amount,
+          'remarks': widget.remarks,
+        });
+      });
+
+      // Update local balance
+      setState(() {
+        widget.account.accBalance -= widget.amount;
+      });
+
+      // Call the update callback to refresh parent widgets
+      if (widget.onUpdate != null) widget.onUpdate!();
+
+      // Navigate to receipt
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PayBillReceiptPage(
+            billType: widget.billType,
+            company: widget.company,
+            amount: widget.amount,
+            remarks: widget.remarks,
+            account: widget.account,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Error"),
+          content: Text("Failed to process payment: $e"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("OK"),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
   }
 
   String _getCurrentDateTimeString() {
@@ -656,7 +703,7 @@ class PayBillReceiptPage extends StatelessWidget {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HomePage(userAccount: account), // Use 'account' instead of 'widget.userAccount'
+                    builder: (context) => HomePage(userAccount: account), // Use 'account'
                   ),
                       (route) => false,
                 );

@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
         context,
         MaterialPageRoute(
           builder: (context) => PaybillsPage(
-            userAccount: account,
+            account: account,
             onUpdate: _updateAccount,
           ),
         ),
@@ -506,4 +506,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-

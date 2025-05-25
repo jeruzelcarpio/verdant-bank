@@ -1,29 +1,15 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
-
-void main() {
-  runApp(const SavingsPage());
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SavingsPage extends StatelessWidget {
   const SavingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Alkansya',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF002019),
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFFB8FF5C),
-          secondary: const Color(0xFFB8FF5C),
-        ),
-      ),
-      home: const AlkansyaScreen(),
-    );
+    return const AlkansyaScreen();
   }
 }
 
@@ -42,6 +28,7 @@ class Plan {
     List<FlSpot>? savingsHistory,
   }) : savingsHistory = savingsHistory ?? [const FlSpot(0, 0)];
 }
+
 class AlkansyaScreen extends StatefulWidget {
   const AlkansyaScreen({super.key});
 
@@ -52,6 +39,33 @@ class AlkansyaScreen extends StatefulWidget {
 class _AlkansyaScreenState extends State<AlkansyaScreen> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey();
   final List<Plan> _plans = [];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPlansFromFirestore();
+  }
+
+  void _fetchPlansFromFirestore() async {
+    final snapshot = await _firestore.collection('savingsPlans').get();
+    final plans = snapshot.docs.map((doc) {
+      final data = doc.data();
+      return Plan(
+        name: data['name'],
+        goalAmount: data['goalAmount'],
+        currentAmount: data['currentAmount'],
+        isCollected: data['isCollected'],
+        savingsHistory: (data['savingsHistory'] as List<dynamic>)
+            .map((point) => FlSpot(point['x'], point['y']))
+            .toList(),
+      );
+    }).toList();
+
+    setState(() {
+      _plans.addAll(plans);
+    });
+  }
 
   void _addNewPlan(String name, double goalAmount) {
     final upperName = name.toUpperCase();
@@ -65,6 +79,44 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       final newPlan = Plan(name: upperName, goalAmount: goalAmount);
       _plans.insert(0, newPlan);
       _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+    });
+
+    _firestore.collection('savingsPlans').add({
+      'name': upperName,
+      'goalAmount': goalAmount,
+      'currentAmount': 0,
+      'isCollected': false,
+      'savingsHistory': [{'x': 0, 'y': 0}],
+    });
+  }
+
+  void _updatePlanInFirestore(Plan plan) {
+    _firestore
+        .collection('savingsPlans')
+        .where('name', isEqualTo: plan.name)
+        .get()
+        .then((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        snapshot.docs.first.reference.update({
+          'currentAmount': plan.currentAmount,
+          'isCollected': plan.isCollected,
+          'savingsHistory': plan.savingsHistory
+              .map((point) => {'x': point.x, 'y': point.y})
+              .toList(),
+        });
+      }
+    });
+  }
+
+  void _deletePlanFromFirestore(String name) {
+    _firestore
+        .collection('savingsPlans')
+        .where('name', isEqualTo: name)
+        .get()
+        .then((snapshot) {
+      for (var doc in snapshot.docs) {
+        doc.reference.delete();
+      }
     });
   }
 
@@ -162,8 +214,10 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       _showWarningDialog();
     } else {
       _confirmDeletePlan(index);
+      _deletePlanFromFirestore(plan.name);
     }
   }
+
   void _openPlanDetails(Plan plan, int index) {
     final TextEditingController amountController = TextEditingController();
     String? errorText;
@@ -283,6 +337,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                     onPressed: goalReached
                         ? () {
                       setState(() => plan.isCollected = true);
+                      _updatePlanInFirestore(plan);
                       Navigator.of(ctx).pop();
                     }
                         : () {
@@ -304,6 +359,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                             plan.currentAmount,
                           ));
                         });
+                        _updatePlanInFirestore(plan);
                         setModalState(() {
                           errorText = null;
                           amountController.clear();
@@ -404,6 +460,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       ),
     );
   }
+
   void _openNewPlanDialog() {
     showDialog(
       context: context,
@@ -499,6 +556,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       },
     );
   }
+
   void _showReminderDialog() {
     showDialog(
       context: context,
@@ -549,6 +607,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF001F1A), // Dark background
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFB8FF5C)),
