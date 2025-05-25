@@ -3,13 +3,17 @@ import 'package:percent_indicator/percent_indicator.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:verdantbank/models/account.dart'; // Import Account model
 
 class SavingsPage extends StatelessWidget {
-  const SavingsPage({super.key});
+  final Account account; // Add account parameter
+  final VoidCallback? onUpdate; // Add callback for balance updates
+
+  const SavingsPage({super.key, required this.account, this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
-    return const AlkansyaScreen();
+    return AlkansyaScreen(account: account, onUpdate: onUpdate);
   }
 }
 
@@ -30,7 +34,10 @@ class Plan {
 }
 
 class AlkansyaScreen extends StatefulWidget {
-  const AlkansyaScreen({super.key});
+  final Account account;
+  final VoidCallback? onUpdate;
+
+  const AlkansyaScreen({super.key, required this.account, this.onUpdate});
 
   @override
   State<AlkansyaScreen> createState() => _AlkansyaScreenState();
@@ -106,6 +113,49 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
         });
       }
     });
+  }
+
+  // Update account balance in Firestore and locally
+  Future<void> _updateAccountBalance(double amount) async {
+    try {
+      final accountQuery = await _firestore
+          .collection('accounts')
+          .where('accNumber', isEqualTo: widget.account.accNumber)
+          .get();
+
+      if (accountQuery.docs.isEmpty) {
+        throw Exception("Account not found.");
+      }
+
+      final accountRef = accountQuery.docs.first.reference;
+
+      await _firestore.runTransaction((transaction) async {
+        // Update balance in Firestore
+        transaction.update(accountRef, {
+          'accBalance': FieldValue.increment(-amount),
+        });
+
+        // Save savings transaction to Firestore
+        await _firestore.collection('transactions').add({
+          'type': 'Savings Deposit',
+          'sourceAccount': widget.account.accNumber,
+          'accounts': [widget.account.accNumber],
+          'dateTime': FieldValue.serverTimestamp(),
+          'amount': amount,
+          'remarks': 'Alkansya savings deposit',
+        });
+      });
+
+      // Update local balance
+      setState(() {
+        widget.account.accBalance -= amount;
+      });
+
+      // Call the update callback to refresh parent widgets
+      if (widget.onUpdate != null) widget.onUpdate!();
+    } catch (e) {
+      throw Exception("Failed to update account balance: $e");
+    }
   }
 
   void _deletePlanFromFirestore(String name) {
@@ -208,6 +258,49 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
     );
   }
 
+  void _showInsufficientFundsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFFFD73F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'INSUFFICIENT FUNDS',
+            style: TextStyle(
+              color: Color(0xFF004D3C),
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          content: Text(
+            'Your current balance is ₱${widget.account.accBalance.toStringAsFixed(2)}. Please enter an amount within your available balance.',
+            style: const TextStyle(
+              color: Color(0xFF004D3C),
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF004D3C),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _deletePlan(int index) {
     final plan = _plans[index];
     if (plan.currentAmount > 0) {
@@ -259,6 +352,28 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                         icon: const Icon(Icons.delete_outline, color: Color(0xFFE5F0C0)),
                       )
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Display current account balance
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00392D),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Available Balance:',
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
+                        Text(
+                          '₱${widget.account.accBalance.toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   AspectRatio(
@@ -340,7 +455,7 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                       _updatePlanInFirestore(plan);
                       Navigator.of(ctx).pop();
                     }
-                        : () {
+                        : () async {
                       final input = amountController.text;
                       final amount = double.tryParse(input);
 
@@ -348,22 +463,42 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
                         setModalState(() => errorText = 'Please input desired amount.');
                       } else if (amount == null || amount <= 0) {
                         setModalState(() => errorText = 'Amount must be greater than zero.');
+                      } else if (amount > widget.account.accBalance) {
+                        // Check against account balance instead of showing generic dialog
+                        setModalState(() => errorText = 'Amount exceeds available balance of ₱${widget.account.accBalance.toStringAsFixed(2)}.');
                       } else if ((plan.currentAmount + amount) > plan.goalAmount) {
                         setModalState(() =>
-                        errorText = 'Goal amount limit is PHP 100,000.');
+                        errorText = 'Amount exceeds goal. Maximum you can add: ₱${(plan.goalAmount - plan.currentAmount).toStringAsFixed(2)}');
                       } else {
-                        setState(() {
-                          plan.currentAmount += amount;
-                          plan.savingsHistory.add(FlSpot(
-                            plan.savingsHistory.length.toDouble(),
-                            plan.currentAmount,
-                          ));
-                        });
-                        _updatePlanInFirestore(plan);
-                        setModalState(() {
-                          errorText = null;
-                          amountController.clear();
-                        });
+                        try {
+                          // Update account balance first
+                          await _updateAccountBalance(amount);
+
+                          // Then update the plan
+                          setState(() {
+                            plan.currentAmount += amount;
+                            plan.savingsHistory.add(FlSpot(
+                              plan.savingsHistory.length.toDouble(),
+                              plan.currentAmount,
+                            ));
+                          });
+                          _updatePlanInFirestore(plan);
+
+                          setModalState(() {
+                            errorText = null;
+                            amountController.clear();
+                          });
+
+                          // Show success message
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Successfully saved ₱${amount.toStringAsFixed(2)} to ${plan.name}'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } catch (e) {
+                          setModalState(() => errorText = 'Failed to process savings: ${e.toString()}');
+                        }
                       }
                     },
                     child: Text(goalReached ? 'COLLECT SAVINGS' : 'SAVE NOW!'),
@@ -584,17 +719,22 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
               ),
               SizedBox(height: 20),
               Text(
-                '1. Once an ‘Alkansya’ is created, it can only be deleted if and only if it has no money inside it.',
+                '1. Once an "Alkansya" is created, it can only be deleted if and only if it has no money inside it.',
                 style: TextStyle(color: Colors.white),
               ),
               SizedBox(height: 10),
               Text(
-                '2. After moving money into the ‘Alkansya’, the only way to retrieve the money is to reach its goal.',
+                '2. After moving money into the "Alkansya", the only way to retrieve the money is to reach its goal.',
                 style: TextStyle(color: Colors.white),
               ),
               SizedBox(height: 10),
               Text(
-                '3. Think carefully before putting money inside the ‘Alkansya’ to avoid any mistakes.',
+                '3. Think carefully before putting money inside the "Alkansya" to avoid any mistakes.',
+                style: TextStyle(color: Colors.white),
+              ),
+              SizedBox(height: 10),
+              Text(
+                '4. Money will be deducted from your account balance when saving.',
                 style: TextStyle(color: Colors.white),
               ),
             ],
@@ -630,20 +770,61 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
           const SizedBox(width: 12),
         ],
       ),
-      body: AnimatedList(
-        key: _listKey,
-        initialItemCount: _plans.length,
-        itemBuilder: (context, index, animation) {
-          return SlideTransition(
-            position: animation.drive(
-              Tween<Offset>(
-                begin: const Offset(1, 0),
-                end: Offset.zero,
-              ).chain(CurveTween(curve: Curves.easeOut)),
+      body: Column(
+        children: [
+          // Account balance display at the top
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00392D),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: _buildPlanTile(_plans[index], index),
-          );
-        },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Available Balance',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                    Text(
+                      '₱${widget.account.accBalance.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  widget.account.accNumber,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: AnimatedList(
+              key: _listKey,
+              initialItemCount: _plans.length,
+              itemBuilder: (context, index, animation) {
+                return SlideTransition(
+                  position: animation.drive(
+                    Tween<Offset>(
+                      begin: const Offset(1, 0),
+                      end: Offset.zero,
+                    ).chain(CurveTween(curve: Curves.easeOut)),
+                  ),
+                  child: _buildPlanTile(_plans[index], index),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openNewPlanDialog,
