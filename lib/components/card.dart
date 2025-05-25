@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:verdantbank/theme/colors.dart';
 
-
 String formatAccountNumber(String input) {
   if (input.length < 10) return input;
   final part1 = input.substring(0, 4);
@@ -14,11 +13,13 @@ String formatAccountNumber(String input) {
 class CardIcon extends StatelessWidget {
   final String savingAccountNum;
   final double accountBalance;
+  final bool showBack;
 
   const CardIcon({
     Key? key,
     required this.savingAccountNum,
     required this.accountBalance,
+    this.showBack = false,
   }) : super(key: key);
 
   @override
@@ -57,7 +58,19 @@ class CardIcon extends StatelessWidget {
             borderRadius: BorderRadius.circular(19),
             color: Colors.transparent,
           ),
-          child: Padding(
+          child: showBack
+              ? Center(
+            child: Text(
+              'Flip to Show Account Details',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          )
+              : Padding(
             padding: const EdgeInsets.all(20.0),
             child: Stack(
               children: [
