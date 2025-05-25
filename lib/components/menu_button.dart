@@ -42,7 +42,7 @@ class _MenuButtonState extends State<MenuButton> {
         height: widget.size,
         decoration: BoxDecoration(
           color: widget.isActive ? widget.bgColor : AppColors.green,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         padding: EdgeInsets.all(8),
         child: Column(
@@ -53,7 +53,7 @@ class _MenuButtonState extends State<MenuButton> {
               color: widget.isActive ? Colors.black : Colors.white,
               size: 24,
             ),
-            SizedBox(height: 6),
+            SizedBox(height: 2),
             Flexible(
               child: Text(
                 widget.buttonName,

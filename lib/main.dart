@@ -17,11 +17,13 @@ import 'package:verdantbank/api/firestore.dart';
 import 'package:verdantbank/animation_class/card_animation.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
+import 'dart:math';
+import 'package:verdantbank/components/flipcard_section.dart';
 
 const userAccountNumber = '1234567891';
 const userAccountEmail = 'franzperez1073@gmail.com';
 
-/*
+
 Future<void> createAccount({
   required String accFirstName,
   required String accLastName,
@@ -50,27 +52,46 @@ Future<void> createAccount({
   }
 
 }
-*/
 
 
-Future<void> main() async {
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    print('Firebase connected successfully');
-  } catch (e) {
-    print('Failed to connect to Firebase: $e');
+  await Firebase.initializeApp();
+  runApp(AccountLoader());
+}
+
+class AccountLoader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Account?>(
+      future: fetchAccount(userAccountEmail),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            home: Scaffold(
+              backgroundColor: AppColors.darkGreen,
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data == null) {
+          return MaterialApp(
+            home: Scaffold(
+              backgroundColor: AppColors.darkGreen,
+              body: Center(
+                child: Text(
+                  'Wahoo',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ),
+          );
+        }
+        return MyApp(userAccount: snapshot.data!);
+      },
+    );
   }
-
-  // Fetch the account from Firestore
-  Account? userAccount = await fetchAccount(userAccountEmail);
-
-  if (userAccount == null) {
-    print('No account found for the given email.');
-    return;
-  }
-
-  runApp(MyApp(userAccount: userAccount));
 }
 
 Future<Account?> fetchAccount(String userAccountEmail) async {
@@ -103,7 +124,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
-      home: HomePage(userAccount: userAccount),
+      home: HomePage(userAccount: userAccount), // change to SignInScreen() or (userAccount: userAccount) if you want to start with the sign-in screen
       onGenerateRoute: (settings) {
         if (settings.name == '/home') {
           return MaterialPageRoute(
@@ -127,6 +148,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _isFlipped = false;
+  Account? _currentAccount;
+
+  void initState() {
+    super.initState();
+    _currentAccount = widget.userAccount;
+  }
 
   void _toggleCardFlip() {
     setState(() {
@@ -204,8 +231,12 @@ class _HomePageState extends State<HomePage> {
           .where('accEmail', isEqualTo: widget.userAccount.accEmail)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState != ConnectionState.active) {
+          // Show loading while waiting for stream
+          return Scaffold(
+            backgroundColor: AppColors.darkGreen,
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (snapshot.hasError) {
@@ -219,10 +250,7 @@ class _HomePageState extends State<HomePage> {
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(
-            child: Text(
-              'Account not found.',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: CircularProgressIndicator(), // Show loading instead of "Account not found."
           );
         }
 
@@ -236,7 +264,7 @@ class _HomePageState extends State<HomePage> {
             child: Padding(
               padding: const EdgeInsets.all(40.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -244,10 +272,13 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.credit_card,
-                            size: 16,
-                            color: AppColors.milk,
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Image.asset(
+                              'assets/homepage_logo.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -283,49 +314,7 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 38),
-                  GestureDetector(
-                    onTap: _toggleCardFlip,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      child: _isFlipped
-                          ? CardIcon(
-                        key: const ValueKey('flipped'),
-                        savingAccountNum: "BACK OF CARD",
-                        accountBalance: accountData.accBalance,
-                      )
-                          : CardIcon(
-                        key: const ValueKey('front'),
-                        savingAccountNum: accountData.accNumber,
-                        accountBalance: accountData.accBalance,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _toggleCardFlip,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.darkGreen,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _isFlipped
-                              ? Icons.rotate_left
-                              : Icons.rotate_right,
-                          color: AppColors.lighterGreen,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isFlipped ? "Show Card" : "Show Account",
-                          style: const TextStyle(
-                            color: AppColors.lighterGreen,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  FlipCardSection(accountData: accountData),
                   const SizedBox(height: 21),
                   Wrap(
                     spacing: 12,
@@ -370,6 +359,9 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 21),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
                   Container(
                     width: double.infinity, // Make it as wide as possible
                     decoration: BoxDecoration(
@@ -471,37 +463,43 @@ class _HomePageState extends State<HomePage> {
                             return Column(children: transactionWidgets);
                           },
                         ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 40),
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => TransactionsPage(account: accountData),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              foregroundColor: AppColors.yellowGold,
-                              backgroundColor: AppColors.lighterGreen,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                            ),
-                            child: const Text(
-                              'See More',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.green,
-                              ),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
+                    Positioned(
+                      left: 90,
+                      right: 90,
+                      bottom: -20, // Negative value to make it peek out
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TransactionsPage(account: accountData),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: AppColors.yellowGold,
+                          backgroundColor: AppColors.lighterGreen,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                        ),
+                        child: const Text(
+                          'See More',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.green,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                  SizedBox(height: 60,),
                 ],
               ),
             ),

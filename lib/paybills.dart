@@ -9,7 +9,9 @@ import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
-import 'main.dart'; // <-- Import userAccount
+import 'main.dart';
+import 'package:verdantbank/api/send_otp.dart';// <-- Import userAccount
+
 
 class PaybillsPage extends StatefulWidget {
   final Account account; // Renamed from userAccount to account
@@ -161,9 +163,8 @@ class _PayBillWidgetState extends State<PayBillWidget> {
       context,
       MaterialPageRoute(
         builder: (context) => OTPConfirmationScreen(
-          phoneNumber: widget.account.accPhoneNum,
-          otpCode: "123456",
-          onConfirm: () {
+          email: widget.account.accEmail,
+          onSuccess: () async {
             Navigator.pop(context);
             final double amount = double.parse(amountController.text);
             Navigator.push(
@@ -180,10 +181,9 @@ class _PayBillWidgetState extends State<PayBillWidget> {
               ),
             );
           },
-          onResend: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("New OTP code sent")),
-            );
+          onResend: () async {
+            final newOtp = generateOtp();
+            await sendOtpToEmail(widget.account.accEmail, newOtp);
           },
         ),
       ),
@@ -517,6 +517,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                   _processPayment();
                 }
               },
+              info: {},
             ),
           ],
         ),

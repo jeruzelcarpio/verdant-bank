@@ -46,6 +46,7 @@ dependencies:
   smooth_page_indicator: ^1.0.0
   image_picker: ^1.0.7
   permission_handler: ^11.3.0
+  cloud_functions: ^4.5.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -76,6 +77,8 @@ flutter:
   assets:
     - assets/
     - assets/logo_horizontal.png
+    - assets/mastercard_logo.png
+    - assets/homepage_logo.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -8,7 +8,11 @@ import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'theme/colors.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+
+import 'package:verdantbank/api/send_otp.dart';
+
 import 'main.dart'; // Import userAccount
 
 class BuyLoadPage extends StatefulWidget {
@@ -120,23 +124,21 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       // Call the update callback to refresh parent widgets
       if (widget.onUpdate != null) widget.onUpdate!();
 
-      // Navigate to OTP confirmation
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPConfirmationScreen(
-            phoneNumber: widget.userAccount.accPhoneNum,
-            otpCode: "123456",
-            onConfirm: () {
-              Navigator.pop(context);
-              _navigateToReceipt(amount);
-            },
-            onResend: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("New OTP code sent")),
-              );
-            },
-          ),
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OTPConfirmationScreen(
+          email: widget.userAccount.accEmail,
+          onSuccess: () async {
+            Navigator.pop(context);
+            _navigateToReceipt(amount);
+          },
+          onResend: () async {
+            final newOtp = generateOtp();
+            await sendOtpToEmail(widget.userAccount.accEmail, newOtp);
+          },
+
         ),
       ).then((_) {
         setState(() {
@@ -278,6 +280,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
                 child: SlideToConfirm(
                   sliderValue: _sliderValue,
                   onChanged: _handleSliderChange,
+                  info: {},
                 ),
               ),
           ],

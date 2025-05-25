@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:verdantbank/theme/colors.dart';
+
+String formatAccountNumber(String input) {
+  if (input.length < 10) return input;
+  final part1 = input.substring(0, 4);
+  final part2 = input.substring(4, 8);
+  final part3 = input.substring(8, 10);
+  return '$part1 $part2 $part3';
+}
 
 class CardIcon extends StatelessWidget {
   final String savingAccountNum;
   final double accountBalance;
+  final bool showBack;
 
   const CardIcon({
-    Key? key, // Add the key parameter
+    Key? key,
     required this.savingAccountNum,
     required this.accountBalance,
-  }) : super(key: key); // Pass the key to the superclass
+    this.showBack = false,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,92 +30,130 @@ class CardIcon extends StatelessWidget {
       decimalDigits: 2,
     ).format(accountBalance);
 
-    return Container(
-      width: double.infinity,
-      height: 185,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            Color.fromARGB(57, 255, 255, 255),
-            Color.fromARGB(13, 255, 255, 255),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2.0),
-        child: Container(
+    return Stack(
+      children: [
+        // Gradient border
+        Container(
+          width: double.infinity,
+          height: 185,
           decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
             gradient: LinearGradient(
-              colors: [
-                Color.fromARGB(13, 255, 255, 255),
-                Color.fromARGB(57, 255, 255, 255),
-              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
+              colors: [
+                Color.fromRGBO(255, 255, 255, 0.3),
+                Color.fromRGBO(255, 255, 255, 0.05),
+              ],
+              stops: [0.0, 1.0],
             ),
-            borderRadius: BorderRadius.circular(16),
           ),
-          child: Padding(
+        ),
+        // Card content
+        Container(
+          width: double.infinity,
+          height: 185,
+          margin: const EdgeInsets.all(0.5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            color: Colors.transparent,
+          ),
+          child: showBack
+              ? Center(
+            child: Text(
+              'Flip to Show Account Details',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          )
+              : Padding(
             padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Stack(
               children: [
+                // Chip at bottom left
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  child: Image.asset(
+                    'assets/card_chip.png',
+                    width: 40,
+                    height: 40,
+                  ),
+                ),
+                // Main card content
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Savings Account',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      savingAccountNum,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Available Balance',
+                          'Savings Account',
                           style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        Row(
+                        Text(
+                          formatAccountNumber(savingAccountNum),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Mastercard logo and balance row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              'PHP ',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            // Mastercard logo aligned right above balance
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Image.asset(
+                                'assets/mastercard_logo.png',
+                                width: 50,
+                                height: 30,
                               ),
                             ),
                             Text(
-                              formattedBalance,
+                              'Available Balance',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                                color: AppColors.milk,
+                                fontSize: 12,
                               ),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'PHP ',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  formattedBalance,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -116,8 +165,7 @@ class CardIcon extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
-
