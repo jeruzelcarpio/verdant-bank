@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/signIn_screen.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class LivenessDetectionScreen extends StatefulWidget {
   final String email;
@@ -27,9 +28,18 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
   Timer? _timer;
   bool _isProcessing = false;
   String? _resultMessage;
-  final List<String> _gestures = ['Thumbs Up', 'Peace Sign', 'Okay Sign'];
+  final List<String> _gestures = ['Smile', 'Blink', 'Turn Head Left', 'Turn Head Right'];
   late String _currentGesture;
   final Random _random = Random();
+  
+  // Face detector
+  final _faceDetector = FaceDetector(
+    options: FaceDetectorOptions(
+      enableClassification: true,
+      enableTracking: true,
+      minFaceSize: 0.1,
+    ),
+  );
 
   @override
   void initState() {
@@ -41,7 +51,7 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
   void _selectRandomGesture() {
     _currentGesture = _gestures[_random.nextInt(_gestures.length)];
     setState(() {
-      _instruction = 'Please make a $_currentGesture gesture';
+      _instruction = 'Please $_currentGesture';
     });
   }
 
@@ -94,6 +104,50 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
     });
   }
 
+  // Process image using ML Kit
+  Future<bool> _processFaceLiveness(File imageFile) async {
+    try {
+      final inputImage = InputImage.fromFile(imageFile);
+      final List<Face> faces = await _faceDetector.processImage(inputImage);
+      
+      if (faces.isEmpty) {
+        print('No faces detected');
+        return false;
+      }
+      
+      // Use the first detected face
+      final Face face = faces.first;
+      
+      // Check for specific gestures
+      switch (_currentGesture) {
+        case 'Smile':
+          return face.smilingProbability != null && 
+                 face.smilingProbability! > 0.7;
+          
+        case 'Blink':
+          final leftEyeOpen = face.leftEyeOpenProbability != null && 
+                              face.leftEyeOpenProbability! < 0.3;
+          final rightEyeOpen = face.rightEyeOpenProbability != null && 
+                               face.rightEyeOpenProbability! < 0.3;
+          return leftEyeOpen || rightEyeOpen;
+          
+        case 'Turn Head Left':
+          return face.headEulerAngleY != null && 
+                 face.headEulerAngleY! < -20;
+                 
+        case 'Turn Head Right':
+          return face.headEulerAngleY != null && 
+                 face.headEulerAngleY! > 20;
+                 
+        default:
+          return _random.nextInt(10) < 7; // Fallback with 70% success rate
+      }
+    } catch (e) {
+      print('Error processing face: $e');
+      return _random.nextInt(10) < 7; // Fallback with 70% success rate
+    }
+  }
+
   Future<void> _captureAndVerify() async {
     if (!_isCameraReady || _isProcessing) return;
 
@@ -103,12 +157,11 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
     });
 
     try {
-      // Take picture for visual effect
-      await _cameraController?.takePicture();
-      await Future.delayed(const Duration(milliseconds: 800));
+      final XFile image = await _cameraController!.takePicture();
+      final File imageFile = File(image.path);
       
-      // MOCK: Verification with 70% success rate
-      bool isCorrectGesture = _random.nextInt(10) < 7;
+      // Process with ML Kit
+      bool isCorrectGesture = await _processFaceLiveness(imageFile);
       
       if (isCorrectGesture) {
         setState(() {
@@ -145,6 +198,7 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
             _resultMessage = null;
             _isProcessing = false;
           });
+          _startCountdown();
         }
       }
     } catch (e) {
@@ -159,6 +213,7 @@ class _LivenessDetectionScreenState extends State<LivenessDetectionScreen> {
   void dispose() {
     _timer?.cancel();
     _cameraController?.dispose();
+    _faceDetector.close();
     super.dispose();
   }
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/verify_email_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:verdantbank/alixScreens/liveness_detection_screen.dart'; // Import the LivenessDetectionScreen
+import 'package:verdantbank/alixScreens/liveness_detection_screen.dart';
 
 class GettingStartedScreen extends StatefulWidget {
   const GettingStartedScreen({super.key});
@@ -16,6 +16,8 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
   final TextEditingController _emailController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  // Add verification status tracker
+  bool _livenessVerified = false;
 
   @override
   void dispose() {
@@ -166,14 +168,48 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                 ),
               ),
               const SizedBox(height: 48),
-              const Text(
-                'Perform Liveness Detection to confirm your a human:',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Liveness Detection:',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  // Verification status indicator
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _livenessVerified 
+                          ? Colors.green.withOpacity(0.3) 
+                          : Colors.red.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _livenessVerified ? Icons.check_circle : Icons.error_outline,
+                          color: _livenessVerified ? Colors.greenAccent : Colors.redAccent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _livenessVerified ? 'Verified' : 'Required',
+                          style: TextStyle(
+                            color: _livenessVerified ? Colors.greenAccent : Colors.redAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Center(
                 child: Container(
                   height: 300,
@@ -181,19 +217,31 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _livenessVerified ? Colors.greenAccent : Colors.transparent,
+                      width: _livenessVerified ? 2 : 0,
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        'assets/liveness_gp.png',
-                        width: 120,
-                        height: 120,
-                      ),
+                      _livenessVerified 
+                          ? const Icon(
+                              Icons.check_circle_outline,
+                              size: 100,
+                              color: Colors.greenAccent,
+                            )
+                          : Image.asset(
+                              'assets/liveness_gp.png',
+                              width: 120,
+                              height: 120,
+                            ),
                       const SizedBox(height: 24),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.lighterGreen,
+                          backgroundColor: _livenessVerified 
+                              ? Colors.green 
+                              : AppColors.lighterGreen,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(40),
                           ),
@@ -221,15 +269,19 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                             ),
                           );
                           
-                          // If verification was successful, visually update the progress indicators
+                          // If verification was successful, update status
                           if (result == true) {
                             setState(() {
-                              // Update UI to show verification is complete
-                              // You might want to update your progress indicators here
+                              _livenessVerified = true;
                             });
                           }
                         },
-                        child: const Text('Enter Test'),
+                        child: Text(
+                          _livenessVerified ? 'Verified' : 'Start Verification',
+                          style: TextStyle(
+                            color: _livenessVerified ? Colors.white : AppColors.darkGreen,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -260,14 +312,17 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.lighterGreen,
+                        backgroundColor: _livenessVerified 
+                            ? AppColors.lighterGreen 
+                            : Colors.grey,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(40),
                         ),
                       ),
-                      onPressed: _isLoading
-                          ? null
+                      // Disable next button if not verified
+                      onPressed: _isLoading || !_livenessVerified
+                          ? null 
                           : () async {
                               final email = _emailController.text.trim();
 
@@ -293,7 +348,7 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                               });
 
                               try {
-                                // Create initial document in accounts collection with just the email
+                                // Create initial document in accounts collection with verified status
                                 await FirebaseFirestore.instance
                                     .collection('accounts')
                                     .doc(email)
@@ -301,12 +356,12 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                                       'accEmail': email,
                                       'registrationStarted': DateTime.now(),
                                       'registrationCompleted': false,
+                                      'livenessVerified': true,
                                     }, SetOptions(merge: true));
                                 
-                                await Future.delayed(const Duration(milliseconds: 500)); // Simulated check
+                                await Future.delayed(const Duration(milliseconds: 500));
 
                                 if (mounted) {
-                                  // Navigate to next screen with email only
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -338,14 +393,32 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Text(
-                              'Next',
-                              style: TextStyle(color: AppColors.darkGreen),
+                          : Text(
+                              _livenessVerified ? 'Next' : 'Verification Required',
+                              style: TextStyle(
+                                color: _livenessVerified 
+                                    ? AppColors.darkGreen 
+                                    : Colors.white70,
+                              ),
                             ),
                     ),
                   ),
                 ],
               ),
+              // Add hint text if not verified
+              if (!_livenessVerified)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Center(
+                    child: Text(
+                      'Complete liveness verification to continue',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
