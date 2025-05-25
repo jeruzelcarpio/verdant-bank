@@ -1,25 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 
-Future<Account?> fetchAccount(String accountNumber) async {
+Future<String?> fetchAccount(String accountEmail) async {
   try {
     final snapshot = await FirebaseFirestore.instance
         .collection('accounts')
-        .where('accNumber', isEqualTo: accountNumber)
+        .where('accEmail', isEqualTo: accountEmail)
         .get();
 
     if (snapshot.docs.isNotEmpty) {
-      final data = snapshot.docs.first.data();
-      return Account(
-        accFirstName: data['accFirstName'],
-        accLastName: data['accLastName'],
-        accNumber: data['accNumber'],
-        accBalance: data['accBalance'],
-        accPhoneNum: data['accPhoneNum'],
-      );
+      return snapshot.docs.first.id; // Return the document ID
     }
   } catch (e) {
     print('Error fetching account: $e');
   }
-  return null;
+  return null; // Return null if no account is found or an error occurs
 }

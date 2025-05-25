@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
@@ -517,6 +517,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                   _processPayment();
                 }
               },
+              info: {},
             ),
           ],
         ),
@@ -562,6 +563,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
       _isProcessing = true;
     });
 
+    /*
     widget.account.addTransaction(
       Transaction(
         type: "Sent To",
@@ -571,6 +573,8 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
         isAdded: false,
       ),
     );
+
+     */
     if (widget.onUpdate != null) widget.onUpdate!();
 
     Navigator.pushReplacement(

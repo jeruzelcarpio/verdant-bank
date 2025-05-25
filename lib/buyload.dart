@@ -4,7 +4,7 @@ import 'components/network_button.dart';
 import 'components/amount_button.dart';
 import 'components/slide_to_confirm.dart';
 import 'components/transaction_receipt.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'theme/colors.dart';
@@ -83,6 +83,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       _showConfirmationSlider = false;
     });
 
+    /*
     widget.userAccount.addTransaction(
       Transaction(
         type: "Bought Load",
@@ -92,6 +93,8 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
         isAdded: false,
       ),
     );
+    */
+
 
     if (widget.onUpdate != null) widget.onUpdate!();
 
@@ -231,6 +234,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
                 child: SlideToConfirm(
                   sliderValue: _sliderValue,
                   onChanged: _handleSliderChange,
+                  info: {},
                 ),
               ),
           ],

@@ -8,7 +8,9 @@ class TransactionReceipt extends StatelessWidget {
   final String? mobileNumber; // Optional
   final String? merchant; // Optional
   final String? destinationAccount; // Optional
-  final String? sourceAccount; // Optional
+  final String? sourceAccount;
+  final String? sourceAccountName;
+  final String? destinationAccountName;// Optional
   final VoidCallback onSave;
   final VoidCallback onDone;
 
@@ -17,11 +19,13 @@ class TransactionReceipt extends StatelessWidget {
     required this.transactionId,
     required this.transactionDateTime,
     required this.amountText,
-    this.selectedNetwork, // Optional
-    this.mobileNumber, // Optional
-    this.merchant, // Optional
-    this.destinationAccount, // Optional
-    this.sourceAccount, // Optional
+    this.selectedNetwork,
+    this.mobileNumber,
+    this.merchant,
+    this.destinationAccount,
+    this.sourceAccount,
+    this.sourceAccountName, // new
+    this.destinationAccountName, // new
     required this.onSave,
     required this.onDone,
   }) : super(key: key);
@@ -64,7 +68,9 @@ class TransactionReceipt extends StatelessWidget {
               if (selectedNetwork != null) _receiptInfoRow("Network", selectedNetwork!),
               if (mobileNumber != null) _receiptInfoRow("Mobile Number", mobileNumber!),
               if (merchant != null) _receiptInfoRow("Merchant", merchant!),
+              if (sourceAccountName != null) _receiptInfoRow("Source Name", sourceAccountName!),
               if (sourceAccount != null) _receiptInfoRow("Source Account", sourceAccount!),
+              if (destinationAccountName != null) _receiptInfoRow("Destination Name", destinationAccountName!),
               if (destinationAccount != null) _receiptInfoRow("Destination Account", destinationAccount!),
               SizedBox(height: 20),
               Container(
