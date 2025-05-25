@@ -1,15 +1,19 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:verdantbank/theme/colors.dart';
 
 class SlideToConfirm extends StatefulWidget {
   final double sliderValue;
   final ValueChanged<double> onChanged;
-  final VoidCallback? onConfirm;  // New callback for confirmation
+  final VoidCallback? onConfirm;
+  final Map<String, String> info;
 
   const SlideToConfirm({
     Key? key,
     required this.sliderValue,
     required this.onChanged,
-    this.onConfirm,  // Optional callback when slide is completed
+    this.onConfirm,
+    required this.info,
   }) : super(key: key);
 
   @override
@@ -19,11 +23,31 @@ class SlideToConfirm extends StatefulWidget {
 class _SlideToConfirmState extends State<SlideToConfirm> {
   late double _internalValue;
   bool _isSliding = false;
+  ui.Image? _arrowImage;
+  ui.Image? _checkImage;
+
 
   @override
   void initState() {
     super.initState();
     _internalValue = widget.sliderValue;
+    _loadImages();
+  }
+
+  Future<void> _loadImages() async {
+    final arrow = await _loadAssetImage('assets/arrow_slide.png');
+    final check = await _loadAssetImage('assets/check_slide.png');
+    setState(() {
+      _arrowImage = arrow;
+      _checkImage = check;
+    });
+  }
+
+  Future<ui.Image> _loadAssetImage(String asset) async {
+    final data = await DefaultAssetBundle.of(context).load(asset);
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    return frame.image;
   }
 
   @override
@@ -67,11 +91,15 @@ class _SlideToConfirmState extends State<SlideToConfirm> {
 
   @override
   Widget build(BuildContext context) {
+    final info = widget.info ?? {};
+    final double trackWidth = MediaQuery.of(context).size.width * 0.92;
+    final double thumbRadius = 32.0;
+    final double progressWidth = (_internalValue * (trackWidth - thumbRadius)) + thumbRadius / 2;
     return Container(
-      height: 140,
-      padding: EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 4, left: 16, right: 16, bottom: 48),
       decoration: BoxDecoration(
-        color: Color(0xFF0F2633),
+        color: AppColors.lightGreen,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(30),
           topRight: Radius.circular(30),
@@ -86,48 +114,56 @@ class _SlideToConfirmState extends State<SlideToConfirm> {
       ),
       child: Column(
         children: [
+          SizedBox(height: 24),
           Text(
-            _internalValue >= 0.95 ? 'Confirmed!' : 'Slide to confirm',
+            _internalValue >= 0.95 ? 'CONFIRMED' : 'CONFIRMATION',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.lighterGreen,
               fontWeight: FontWeight.bold,
             ),
           ),
           SizedBox(height: 15),
+          if (info.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ConfirmationInfo(info: info),
+            ),
           Stack(
             alignment: Alignment.center,
             children: [
               // Track background
               Container(
-                height: 60,
+                height: 78,
+                width: trackWidth,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(50),
-                  color: Color(0xFF0A1922),
+                  borderRadius: BorderRadius.circular(80),
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Color(0x99999999),
+                      Color(0xFF999999),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 16,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
                 ),
               ),
               // Progress indicator
-              Positioned(
-                left: 0,
-                child: Container(
-                  height: 60,
-                  width: MediaQuery.of(context).size.width * _internalValue * 0.7,  // Adjust width based on parent container
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(50),
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0F2633), Color(0xFFC1FD52).withOpacity(0.3)],
-                    ),
-                  ),
-                ),
-              ),
               // Slider hint text
               Positioned(
-                right: 50,
+                right: 75,
                 child: AnimatedOpacity(
-                  opacity: _internalValue < 0.7 ? 1.0 : 0.0,
+                  opacity: _internalValue < 0.5 ? 1.0 : 0.0,
                   duration: Duration(milliseconds: 200),
                   child: Text(
-                    "Slide all the way >>>",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                    "Swipe to Confirm ",
+                    style: TextStyle(color: AppColors.milk, fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -138,12 +174,15 @@ class _SlideToConfirmState extends State<SlideToConfirm> {
                   inactiveTrackColor: Colors.transparent,
                   thumbColor: Color(0xFFC1FD52),
                   overlayColor: Color(0xFFC1FD52).withOpacity(0.3),
-                  trackHeight: 60.0,
-                  thumbShape: _CustomThumbShape(),
+                  trackHeight: 31,
+                  thumbShape: _CustomThumbShape(
+                    arrowImage: _arrowImage,
+                    checkImage: _checkImage,
+                  ),
                 ),
                 child: Slider(
                   value: _internalValue,
-                  onChanged: _handleSliderChange,
+                  onChanged: _arrowImage == null ? null : _handleSliderChange,
                   onChangeEnd: _handleSliderEnd,
                   onChangeStart: _handleSliderStart,
                 ),
@@ -157,35 +196,36 @@ class _SlideToConfirmState extends State<SlideToConfirm> {
 }
 
 class _CustomThumbShape extends SliderComponentShape {
-  final double enabledThumbRadius = 20;
-  final double disabledThumbRadius = 10;
+  final double enabledThumbRadius = 30.0;
+  final ui.Image? arrowImage;
+  final ui.Image? checkImage;
+
+  _CustomThumbShape({this.arrowImage, this.checkImage});
 
   @override
   Size getPreferredSize(bool isEnabled, bool isDiscrete) {
-    return Size.fromRadius(isEnabled ? enabledThumbRadius : disabledThumbRadius);
+    return Size.fromRadius(enabledThumbRadius);
   }
 
   @override
-  void paint(
-    PaintingContext context,
-    Offset center, {
-    required Animation<double> activationAnimation,
-    required Animation<double> enableAnimation,
-    required bool isDiscrete,
-    required TextPainter labelPainter,
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required TextDirection textDirection,
-    required double value,
-    required double textScaleFactor,
-    required Size sizeWithOverflow,
-  }) {
+  void paint(PaintingContext context,
+      Offset center, {
+        required Animation<double> activationAnimation,
+        required Animation<double> enableAnimation,
+        required bool isDiscrete,
+        required TextPainter labelPainter,
+        required RenderBox parentBox,
+        required SliderThemeData sliderTheme,
+        required TextDirection textDirection,
+        required double value,
+        required double textScaleFactor,
+        required Size sizeWithOverflow,
+      }) {
     final Canvas canvas = context.canvas;
-
     final bool isCompleted = value >= 0.95;
-    
+
     final Paint fillPaint = Paint()
-      ..color = isCompleted ? Color(0xFFC1FD52) : sliderTheme.thumbColor!
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
 
     final Paint borderPaint = Paint()
@@ -193,44 +233,78 @@ class _CustomThumbShape extends SliderComponentShape {
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
-    // Draw the thumb circle
+    final Paint shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.25)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+
+    canvas.drawCircle(center.translate(0, 4), enabledThumbRadius * 0.85, shadowPaint);
+
     canvas.drawCircle(center, enabledThumbRadius, fillPaint);
     canvas.drawCircle(center, enabledThumbRadius, borderPaint);
 
-    // Draw different icons based on state
-    if (isCompleted) {
-      // Draw checkmark if confirmed
-      final Paint checkPaint = Paint()
-        ..color = Colors.black
-        ..strokeWidth = 3
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      
-      final Path checkPath = Path();
-      final double checkSize = enabledThumbRadius * 0.9;
-      
-      checkPath.moveTo(center.dx - checkSize/2, center.dy);
-      checkPath.lineTo(center.dx - checkSize/6, center.dy + checkSize/2);
-      checkPath.lineTo(center.dx + checkSize/2, center.dy - checkSize/2);
-      
-      canvas.drawPath(checkPath, checkPaint);
-    } else {
-      // Draw an arrow for sliding
-      final Paint arrowPaint = Paint()
-        ..color = Colors.black
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      final double arrowSize = enabledThumbRadius * 0.7;
-      final Path arrowPath = Path();
-      arrowPath.moveTo(center.dx - arrowSize / 2, center.dy);
-      arrowPath.lineTo(center.dx + arrowSize / 2, center.dy);
-      arrowPath.moveTo(center.dx + arrowSize / 3, center.dy - arrowSize / 3);
-      arrowPath.lineTo(center.dx + arrowSize / 2, center.dy);
-      arrowPath.lineTo(center.dx + arrowSize / 3, center.dy + arrowSize / 3);
-
-      canvas.drawPath(arrowPath, arrowPaint);
+    final image = isCompleted ? checkImage : arrowImage;
+    if (image != null) {
+      final double imageSize = enabledThumbRadius * .65;
+      final Rect dst = Rect.fromCenter(
+        center: center,
+        width: imageSize,
+        height: imageSize,
+      );
+      canvas.drawImageRect(
+        image,
+        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+        dst,
+        Paint(),
+      );
     }
+  }
+}
+
+class ConfirmationInfo extends StatelessWidget {
+  final Map<String, String> info;
+
+  const ConfirmationInfo({Key? key, required this.info}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (info.isEmpty) {
+      return SizedBox.shrink();
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: List.generate(info.length, (index) {
+          final entry = info.entries.elementAt(index);
+          final bool isAmount = entry.key == 'TRANSFER AMOUNT';
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(fontWeight: FontWeight.normal, color: AppColors.milk, fontSize: 12),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    entry.value,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: AppColors.milk,
+                      fontSize: isAmount ? 20 : 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
   }
 }

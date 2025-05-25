@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:verdantbank/account.dart';
+import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/menu_button.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
@@ -8,28 +8,28 @@ import 'package:verdantbank/components/slide_to_confirm.dart';
 import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
+import 'main.dart'; // <-- Import userAccount
+
 
 class PaybillsPage extends StatefulWidget {
+  final Account userAccount; // Add userAccount parameter
+  final VoidCallback? onUpdate;
+
+  const PaybillsPage({Key? key, required this.userAccount, this.onUpdate}) : super(key: key);
+
   @override
   _PaybillsPageState createState() => _PaybillsPageState();
 }
 
 class _PaybillsPageState extends State<PaybillsPage> {
-  Account userAccount = Account(
-    accFirstName: "Jeff",
-    accLastName: "Mendez",
-    accNumber: "1013 456 1234",
-    accBalance: 50000.00,
-    accPhoneNum: "+1234567890", // Added the missing accPhoneNum parameter
-  );
-
   void _openPayBillWidget(String billType) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => PayBillWidget(
-          account: userAccount,
+          account: widget.userAccount, // Use widget.userAccount
           billType: billType,
+          onUpdate: widget.onUpdate,
         ),
       ),
     );
@@ -112,11 +112,13 @@ class _PaybillsPageState extends State<PaybillsPage> {
 class PayBillWidget extends StatefulWidget {
   final Account account;
   final String billType;
+  final VoidCallback? onUpdate;
 
   const PayBillWidget({
     Key? key,
     required this.account,
     required this.billType,
+    this.onUpdate,
   }) : super(key: key);
 
   @override
@@ -129,51 +131,40 @@ class _PayBillWidgetState extends State<PayBillWidget> {
   String? selectedCompany;
 
   List<String> companies = [
-    'Company 1',
-    'Company 2',
-    'Company 3',
-    'Company 4',
-    'Company 5',
+    'MERALCO',
+    'MAYNILAD',
+    'PLDT',
+    'GLOBE',
+    'SMART',
   ];
 
   void _payBill() {
-    // Validate company selection
     if (selectedCompany == null || selectedCompany!.isEmpty) {
       _showErrorDialog("Please select a company.");
       return;
     }
-
-    // Validate amount
     if (amountController.text.isEmpty) {
       _showErrorDialog("Please enter an amount.");
       return;
     }
-
-    // Parse and validate the amount
     double? amount = double.tryParse(amountController.text);
     if (amount == null || amount <= 0) {
       _showErrorDialog("Please enter a valid amount.");
       return;
     }
-
-    // Check if amount exceeds balance
     if (amount > widget.account.accBalance) {
       _showErrorDialog("Amount exceeds available balance.");
       return;
     }
 
-    // All validations passed, proceed to OTP authentication
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => OTPConfirmationScreen(
           phoneNumber: widget.account.accPhoneNum,
-          otpCode: "123456", // In production, this would be generated and sent to the user
+          otpCode: "123456",
           onConfirm: () {
-            // First pop the OTP screen
             Navigator.pop(context);
-            
-            // Then navigate to slide confirm with the collected information
             final double amount = double.parse(amountController.text);
             Navigator.push(
               context,
@@ -184,12 +175,12 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                   amount: amount,
                   remarks: remarksController.text,
                   account: widget.account,
+                  onUpdate: widget.onUpdate,
                 ),
               ),
             );
           },
           onResend: () {
-            // In a real app, this would trigger sending a new OTP
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("New OTP code sent")),
             );
@@ -199,8 +190,6 @@ class _PayBillWidgetState extends State<PayBillWidget> {
     );
   }
 
-  // Remove the unused _navigateToSlideConfirm method as we're implementing the navigation directly in onConfirm
-  
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -263,7 +252,6 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                   accountBalance: widget.account.accBalance,
                 ),
                 SizedBox(height: 16),
-                
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
@@ -283,8 +271,6 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                           ),
                         ),
                         SizedBox(height: screenHeight * 0.02),
-                        
-                        // Dropdown for companies
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 20),
                           decoration: BoxDecoration(
@@ -318,7 +304,6 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                           ),
                         ),
                         SizedBox(height: screenHeight * 0.02),
-
                         TextField(
                           controller: amountController,
                           style: TextStyle(color: Colors.white),
@@ -337,7 +322,7 @@ class _PayBillWidgetState extends State<PayBillWidget> {
                             filled: true,
                             fillColor: AppColors.green,
                           ),
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.numberWithOptions(decimal: true),
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                           ],
@@ -431,6 +416,7 @@ class PayBillSlideConfirmPage extends StatefulWidget {
   final double amount;
   final String remarks;
   final Account account;
+  final VoidCallback? onUpdate;
 
   const PayBillSlideConfirmPage({
     Key? key,
@@ -439,6 +425,7 @@ class PayBillSlideConfirmPage extends StatefulWidget {
     required this.amount,
     required this.remarks,
     required this.account,
+    this.onUpdate,
   }) : super(key: key);
 
   @override
@@ -447,6 +434,7 @@ class PayBillSlideConfirmPage extends StatefulWidget {
 
 class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
   double _sliderValue = 0.0;
+  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -486,7 +474,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                       SizedBox(height: MediaQuery.of(context).size.height * 0.03),
                       _buildDetailRow("Bill Type", widget.billType),
                       _buildDetailRow("Provider", widget.company),
-                      _buildDetailRow("Amount", "\$${widget.amount.toStringAsFixed(2)}"),
+                      _buildDetailRow("Amount", "₱${widget.amount.toStringAsFixed(2)}"),
                       if (widget.remarks.isNotEmpty)
                         _buildDetailRow("Remarks", widget.remarks),
                       _buildDetailRow("From Account", widget.account.accNumber),
@@ -504,7 +492,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                "Slide to confirm your payment of \$${widget.amount.toStringAsFixed(2)} to ${widget.company}",
+                                "Slide to confirm your payment of ₱${widget.amount.toStringAsFixed(2)} to ${widget.company}",
                                 style: TextStyle(
                                   color: AppColors.lighterGreen,
                                   fontSize: 14,
@@ -524,11 +512,12 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
               onChanged: (double value) {
                 setState(() {
                   _sliderValue = value;
-                  if (value >= 0.95) {
-                    _processPayment();
-                  }
                 });
+                if (value >= 0.99 && !_isProcessing) {
+                  _processPayment();
+                }
               },
+              info: {},
             ),
           ],
         ),
@@ -569,8 +558,25 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
   }
 
   void _processPayment() {
-    // In a real app, this would process the actual payment
-    // Then navigate to the receipt page
+    if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+    });
+
+    /*
+    widget.account.addTransaction(
+      Transaction(
+        type: "Sent To",
+        recipient: widget.company,
+        dateTime: _getCurrentDateTimeString(),
+        amount: widget.amount,
+        isAdded: false,
+      ),
+    );
+
+     */
+    if (widget.onUpdate != null) widget.onUpdate!();
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -583,6 +589,15 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
         ),
       ),
     );
+  }
+
+  String _getCurrentDateTimeString() {
+    final now = DateTime.now();
+    const months = [
+      "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+      "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+    ];
+    return "${months[now.month - 1]} ${now.day}, ${now.year}, ${now.hour}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? 'PM' : 'AM'}";
   }
 }
 
@@ -629,17 +644,23 @@ class PayBillReceiptPage extends StatelessWidget {
             child: TransactionReceipt(
               transactionId: transactionId,
               transactionDateTime: transactionDateTime,
-              amountText: "\$${amount.toStringAsFixed(2)}",
+              amountText: "₱${amount.toStringAsFixed(2)}",
               merchant: company,
               sourceAccount: account.accNumber,
               onSave: () {
-                // In a real app, this would save the receipt to device or send via email
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Receipt saved")),
                 );
               },
               onDone: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
+                // Navigate to homepage instead of popping to first route
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(userAccount: account), // Use 'account' instead of 'widget.userAccount'
+                  ),
+                      (route) => false,
+                );
               },
             ),
           ),
@@ -648,4 +669,3 @@ class PayBillReceiptPage extends StatelessWidget {
     );
   }
 }
-
