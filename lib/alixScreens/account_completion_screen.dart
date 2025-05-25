@@ -30,15 +30,15 @@ class _AccountCompletionScreenState extends State<AccountCompletionScreen> {
     final Random random = Random();
     bool isUnique = false;
     String accNumber = '';
-    
+
     while (!isUnique) {
-      // Generate a random number in the format "XXXXXXXXXXXX" (no spaces)
-      final part1 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
-      final part2 = (100 + random.nextInt(900)).toString();   // 100-999
-      final part3 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
-      
-      // Concatenate without spaces
-      accNumber = "$part1$part2$part3";
+      // Generate a random 10-digit number
+      // First digit can't be 0 to ensure it's 10 digits
+      int firstDigit = 1 + random.nextInt(9); // 1-9
+      int remainingDigits = random.nextInt(1000000000); // 0-999999999
+
+      // Format to ensure exactly 10 digits
+      accNumber = firstDigit.toString() + remainingDigits.toString().padLeft(9, '0');
       
       // Check if this account number already exists
       final QuerySnapshot query = await FirebaseFirestore.instance

@@ -70,10 +70,10 @@ class _CryptoBuyCheckoutPageState extends State<CryptoBuyCheckoutPage> {
       'destinationAccount': widget.symbol,
       'sourceAccount': accountNumber,
       'timestamp': FieldValue.serverTimestamp(),
-      'type': 'buy crypto',
+      'type': 'Buy Crypto',
+      'accounts': [accountNumber], // <-- Add this line
     });
 
-    // Optionally deduct the amount from user balance
     await FirebaseFirestore.instance.collection('accounts').doc(accountDocId).update({
       'accBalance': FieldValue.increment(-phpAmount),
     });
@@ -238,12 +238,13 @@ class _CryptoBuyCheckoutPageState extends State<CryptoBuyCheckoutPage> {
                         try {
                           // Add transaction record first
                           await FirebaseFirestore.instance.collection('crypto_transactions').add({
+                            'type': 'Buy Crypto',
                             'amount': amount,
                             'cryptoAmount': cryptoAmount,
-                            'destinationAccount': widget.symbol,
+                            'destinationAccount': 'BTC',
                             'sourceAccount': accountNumber,
                             'timestamp': FieldValue.serverTimestamp(),
-                            'type': 'Buy Crypto',
+                            'accounts': [accountNumber],
                           });
 
                           final DocumentReference accountRef = FirebaseFirestore.instance.collection('accounts').doc(accountDocId);

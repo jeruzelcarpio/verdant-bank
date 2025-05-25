@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:verdantbank/models/account.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:verdantbank/utils/date_utils.dart';
+import 'package:async/async.dart';
 
 
 
@@ -47,105 +48,111 @@ Widget build(BuildContext context) {
         borderRadius: BorderRadius.circular(16), // Optional: rounded corners
         color: Colors.white, // Or your preferred background
       ),
-    child: StreamBuilder<firestore.QuerySnapshot>(
-      stream: firestore.FirebaseFirestore.instance
-          .collection('transactions')
-          .where('accounts', arrayContains: account.accNumber)
-          .orderBy('dateTime', descending: true) // or remove limit for full list
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading transactions.'));
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text('No transactions yet.'));
-        }
-
-        final transactions = snapshot.data!.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          String destinationName = '';
-          if (data['type'] == 'Transfer to Other Bank') {
-            destinationName = data['bank'] ?? '';
-          } else {
-            final firstName = data['destinationFirstName'] ?? '';
-            final lastName = data['destinationLastName'] ?? '';
-            destinationName = (firstName + ' ' + lastName).trim();
+      child: StreamBuilder<List<firestore.QuerySnapshot>>(
+        stream: StreamZip([
+          firestore.FirebaseFirestore.instance
+              .collection('transactions')
+              .where('accounts', arrayContains: account.accNumber)
+              .orderBy('dateTime', descending: true)
+              .snapshots(),
+          firestore.FirebaseFirestore.instance
+              .collection('crypto_transactions')
+              .where('accounts', arrayContains: account.accNumber)
+              .orderBy('timestamp', descending: true)
+              .snapshots(),
+        ]),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
           }
-          // Format dateTime
-          String dateString = '';
-          final dateTime = data['dateTime'];
-          if (dateTime is Timestamp) {
-            print('Raw Timestamp: $dateTime');
-            print('UTC DateTime: ${dateTime.toDate()}');
-            print('Local DateTime: ${dateTime.toDate().toLocal()}');
-            dateString = formatToLocal(dateTime.toDate());
-          }else if (dateTime is String) {
-            dateString = dateTime;
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading transactions.'));
           }
-          // Use totalAmount for "Transfer to Other Bank", else use amount
-          double amount = 0.0;
-          if (data['type'] == 'Transfer to Other Bank' && data['totalAmount'] != null) {
-            amount = (data['totalAmount'] as num).toDouble();
-          } else if (data['amount'] is int) {
-            amount = (data['amount'] as int).toDouble();
-          } else if (data['amount'] is double) {
-            amount = data['amount'];
+          final regularDocs = snapshot.data![0].docs;
+          final cryptoDocs = snapshot.data![1].docs;
+          print('Crypto docs data: ${cryptoDocs.map((d) => d.data())}');
+          print('Regular docs: ${regularDocs.length}');
+          print('Crypto docs: ${cryptoDocs.length}');
+
+          final allDocs = [
+            ...regularDocs.map((doc) => {'data': doc.data() as Map<String, dynamic>, 'isCrypto': false}),
+            ...cryptoDocs.map((doc) => {'data': doc.data() as Map<String, dynamic>, 'isCrypto': true}),
+          ];
+
+          // Sort allDocs by timestamp/dateTime descending
+          allDocs.sort((a, b) {
+            final aIsCrypto = a['isCrypto'] == true;
+            final bIsCrypto = b['isCrypto'] == true;
+            final Map<String, dynamic> aData = a['data'] as Map<String, dynamic>;
+            final Map<String, dynamic> bData = b['data'] as Map<String, dynamic>;
+            final aTime = aIsCrypto
+                ? (aData['timestamp'] as Timestamp?)?.toDate()
+                : (aData['dateTime'] as Timestamp?)?.toDate();
+            final bTime = bIsCrypto
+                ? (bData['timestamp'] as Timestamp?)?.toDate()
+                : (bData['dateTime'] as Timestamp?)?.toDate();
+            return (bTime ?? DateTime(0)).compareTo(aTime ?? DateTime(0));
+          });
+
+          if (allDocs.isEmpty) {
+            return Center(child: Text('No transactions found.'));
           }
-          return {
-            'type': data['type'] ?? '',
-            'sourceAccount': data['sourceAccount'] ?? '',
-            'destinationAccount': data['destinationAccount'] ?? '',
-            'destinationName': destinationName,
-            'dateTime': dateString,
-            'amount': amount,
-            'bank': data['bank'] ?? '',
-          };
-        }).toList();
 
-        // Optional: print for debugging
-        for (var tx in transactions) {
-          print('Transaction: $tx');
-        }
-
-        final Map<String, List<Map<String, dynamic>>> grouped = {};
-        for (var tx in transactions) {
-          final date = DateFormat('yyyy-MM').format(DateFormat('MMM dd, yyyy, hh:mm a').parse(tx['dateTime']));
-          grouped.putIfAbsent(date, () => []).add(tx);
-        }
-
-        final List<Map<String, dynamic>> items = [];
-        grouped.forEach((key, txs) {
-          final header = DateFormat('MMMM yyyy').format(DateFormat('yyyy-MM').parse(key));
-          if (header.trim().isNotEmpty) {
-            items.add({'header': header});
-          }
-          items.addAll(txs);
-        });
-
-        return ListView.builder(
-            itemCount: items.length,
+          return ListView.builder(
+            itemCount: allDocs.length,
             itemBuilder: (context, index) {
-              final item = items[index];
-              if (item.containsKey('header') && (item['header']?.toString().trim().isNotEmpty ?? false)) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 20.0, bottom: 2.0, left: 16.0, right: 16.0),
-                  child: Text(
-                    item['header'].toUpperCase(),
-                    style: TextStyle(fontSize: 16, color: AppColors.green),
-                    textAlign: TextAlign.center,
+              final tx = allDocs[index];
+              final data = tx['data'] as Map<String, dynamic>;
+              final isCrypto = tx['isCrypto'] as bool;
+
+              if (isCrypto) {
+                final DateTime date = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+                final double amount = (data['amount'] is num) ? (data['amount'] as num).toDouble() : 0.0;
+                final double cryptoAmount = (data['cryptoAmount'] is num) ? (data['cryptoAmount'] as num).toDouble() : 0.0;
+                return ListTile(
+                  leading: Icon(Icons.currency_bitcoin, color: AppColors.green),
+                  title: Text(
+                    data['type']?.toString() ?? 'Crypto Transaction',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'From: ${data['sourceAccount']?.toString() ?? ""} To: ${data['destinationAccount']?.toString() ?? ""}\n'
+                        'Amount: PHP ${amount.toStringAsFixed(2)} | Crypto: $cryptoAmount',
+                  ),
+                  trailing: Text(
+                    DateFormat('MMM dd, yyyy, hh:mm a').format(date),
+                    style: TextStyle(fontSize: 12),
                   ),
                 );
-              }
-              final tx = item;
-              return FutureBuilder<firestore.QuerySnapshot>(
+              } else {
+                // Regular transaction display (reuse your TransactionRow)
+                String destinationName = '';
+                if (data['type'] == 'Transfer to Other Bank') {
+                  destinationName = data['bank'] ?? '';
+                } else {
+                  final firstName = data['destinationFirstName'] ?? '';
+                  final lastName = data['destinationLastName'] ?? '';
+                  destinationName = (firstName + ' ' + lastName).trim();
+                }
+                String dateString = '';
+                final dateTime = data['dateTime'];
+                if (dateTime is Timestamp) {
+                  dateString = formatToLocal(dateTime.toDate());
+                } else if (dateTime is String) {
+                  dateString = dateTime;
+                }
+                double amount = 0.0;
+                if (data['type'] == 'Transfer to Other Bank' && data['totalAmount'] != null) {
+                  amount = (data['totalAmount'] as num).toDouble();
+                } else if (data['amount'] is int) {
+                  amount = (data['amount'] as int).toDouble();
+                } else if (data['amount'] is double) {
+                  amount = data['amount'];
+                }
+                return FutureBuilder<firestore.QuerySnapshot>(
                   future: firestore.FirebaseFirestore.instance
                       .collection('accounts')
-                      .where('accNumber', isEqualTo: tx['destinationAccount'])
+                      .where('accNumber', isEqualTo: data['destinationAccount'])
                       .get(),
                   builder: (context, snapshot) {
                     String destName = "Unknown Account";
@@ -159,34 +166,34 @@ Widget build(BuildContext context) {
                       }
                     }
                     final displayName = "$destName";
-
-                    // Logic for transfer type
-                    String displayType = tx['type'];
-                    if (tx['type'] == 'Transfer') {
-                      if (tx['destinationAccount'] == account.accNumber) {
+                    String displayType = data['type']?.toString() ?? '';
+                    String sourceAccount = data['sourceAccount']?.toString() ?? '';
+                    String destinationAccount = data['destinationAccount']?.toString() ?? '';
+                    if (data['type'] == 'Transfer') {
+                      if (data['destinationAccount'] == account.accNumber) {
                         displayType = 'Received From';
                       } else {
                         displayType = 'Sent To';
                       }
                     }
-
                     return TransactionRow(
                       transactionType: displayType,
-                      sourceAccount: tx['sourceAccount'],
-                      destinationAccount: tx['destinationAccount'],
+                      sourceAccount: sourceAccount,
+                      destinationAccount: destinationAccount,
                       destinationName: displayName,
-                      dateTime: tx['dateTime'],
-                      amount: tx['amount'],
+                      dateTime: dateString,
+                      amount: amount,
                       currentAccount: account.accNumber,
                       textColor: AppColors.darkGreen,
                     );
-                  }
-              );
-            }
-        );
-      },
+                  },
+                );
+              }
+            },
+          );
+        },
+      ),
     ),
-    )
   );
 }
 }

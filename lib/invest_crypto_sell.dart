@@ -69,6 +69,7 @@ class _SellCryptoPageState extends State<SellCryptoPage> {
     final now = Timestamp.now();
     final transactionData = {
       'type': 'Sell Crypto',
+      'accounts': [userData!['accNumber']],
       'destinationAccount': '${userData!['accNumber']}',
       'sourceAccount': 'VERDANT BANK',
       'timestamp': now,
