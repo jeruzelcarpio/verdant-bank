@@ -40,7 +40,7 @@ class BuyCryptoPage extends StatelessWidget {
                   return GestureDetector(
                     onTap: () {
                       final symbol = crypto['symbol'];
-                      if (symbol == 'BTC' || symbol == 'ETH') {
+                      if (symbol == 'BTC') {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
