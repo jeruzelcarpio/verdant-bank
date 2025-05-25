@@ -8,8 +8,6 @@ import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' as firestore; // Aliased import
-import 'package:verdantbank/api/firestore.dart';
 
 class TransferPage extends StatefulWidget {
   final Account account;
@@ -139,129 +137,58 @@ class _TransferWidgetState extends State<TransferWidget> {
   }
 
   // Execute transfer transaction
-  void _executeTransferTransaction() async {
-    if (_isTransactionInProgress) return;
+  void _executeTransferTransaction() {
+    if (_isTransactionInProgress) return; // Prevent multiple executions
 
     setState(() {
-      _isTransactionInProgress = true;
+      _isTransactionInProgress = true; // Mark transaction as in progress
     });
 
     double? amount = double.tryParse(amountController.text);
     if (amount == null || amount <= 0) {
       _showErrorDialog("Please enter a valid amount.");
       setState(() {
-        _isTransactionInProgress = false;
+        _isTransactionInProgress = false; // Reset flag
       });
       return;
     }
     if (amount > widget.account.accBalance) {
       _showErrorDialog("Amount exceeds available balance.");
       setState(() {
-        _isTransactionInProgress = false;
+        _isTransactionInProgress = false; // Reset flag
       });
       return;
     }
 
-    try {
-      // Query recipient account
-      final recipientQuery = firestore.FirebaseFirestore.instance
-          .collection('accounts')
-          .where('accNumber', isEqualTo: accountNumberController.text);
+    // Deduct the amount from the account balance
+    setState(() {
+      widget.account.accBalance -= amount;
+      _sliderValue = 0.0;
+      _showConfirmationSlider = false;
 
-      final recipientSnapshot = await recipientQuery.get();
+      // Call the onUpdate callback to update the main page
+      widget.onUpdate();
+    });
 
-      if (recipientSnapshot.docs.isEmpty) {
-        _showErrorDialog("User not recognized.");
-        setState(() {
-          _isTransactionInProgress = false;
-          _showConfirmationSlider = false; // Hide the slider
-        });
-        return;
-      }
-
-      // Extract recipient details
-      final recipientData = recipientSnapshot.docs.first.data();
-      final recipientFirstName = recipientData['accFirstName'] ?? 'Unknown';
-      final recipientLastName = recipientData['accLastName'] ?? 'Unknown';
-      final recipientName = '$recipientFirstName $recipientLastName';
-
-      if (recipientName.trim() == 'Unknown Unknown') {
-        _showErrorDialog("Recipient name is missing in the account details.");
-        setState(() {
-          _isTransactionInProgress = false;
-        });
-        return;
-      }
-      // Navigate to OTP confirmation
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPConfirmationScreen(
-            phoneNumber: widget.account.accPhoneNum,
-            otpCode: "123456", // Example OTP code
-            onConfirm: () async {
-              try {
-                // Perform the transaction
-                final recipientAccountRef = recipientSnapshot.docs.first.reference;
-                print("Recipient snapshot: $recipientAccountRef");
-
-                await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
-                  // Fetch the sender's account document reference
-                  final senderAccountQuery = await firestore.FirebaseFirestore.instance
-                      .collection('accounts')
-                      .where('accNumber', isEqualTo: widget.account.accNumber)
-                      .get();
-
-                  if (senderAccountQuery.docs.isEmpty) {
-                    throw Exception("Sender account not found.");
-                  }
-
-                  final senderAccountRef = senderAccountQuery.docs.first.reference;
-
-                  // Update balances
-                  transaction.update(senderAccountRef, {
-                    'accBalance': firestore.FieldValue.increment(-amount),
-                  });
-
-                  transaction.update(recipientAccountRef, {
-                    'accBalance': firestore.FieldValue.increment(amount),
-                  });
-                });
-
-                // Update local balance
-                setState(() {
-                  widget.account.accBalance -= amount;
-                  _sliderValue = 0.0;
-                  _showConfirmationSlider = false;
-                  widget.onUpdate();
-                });
-
-                // Navigate to receipt
-                _navigateToReceipt(amount);
-              } catch (e) {
-                _showErrorDialog("Failed to process transaction: $e");
-              } finally {
-                setState(() {
-                  _isTransactionInProgress = false;
-                });
-              }
-            },
-            onResend: () {
-              print("OTP Resent");
-            },
-          ),
+    // Navigate to OTP confirmation screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OTPConfirmationScreen(
+          phoneNumber: widget.account.accPhoneNum,
+          otpCode: "123456", // Example OTP code
+          onConfirm: () => _navigateToReceipt(amount),
+          onResend: () {
+            print("OTP Resent");
+          },
         ),
-      ).then((_) {
-        setState(() {
-          _isTransactionInProgress = false;
-        });
-      });
-    } catch (e) {
-      _showErrorDialog("Failed to process transaction: $e");
+      ),
+    ).then((_) {
+      // Reset the transaction flag when returning to this screen
       setState(() {
         _isTransactionInProgress = false;
       });
-    }
+    });
   }
 
   // Navigate to the transaction receipt screen
@@ -471,7 +398,7 @@ class _TransferWidgetState extends State<TransferWidget> {
                           child: ElevatedButton(
                             onPressed: () => Navigator.pop(context),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.lightGreen,
+                              backgroundColor: AppColors.darkGreen,
                               side: BorderSide(color: AppColors.lighterGreen),
                             ),
                             child: Text(

@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/UserRegistrationScreen.dart';
 
-class TermsAndConditions extends StatefulWidget {
-  const TermsAndConditions({super.key});
-
+class TermsAndConditionsScreen extends StatefulWidget {
+  final String email;
+  
+  const TermsAndConditionsScreen({
+    Key? key, 
+    required this.email,
+  }) : super(key: key);
+  
   @override
-  State<TermsAndConditions> createState() => _TermsAndConditions();
+  State<TermsAndConditionsScreen> createState() => _TermsAndConditionsScreenState();
 }
 
-class _TermsAndConditions extends State<TermsAndConditions> {
+class _TermsAndConditionsScreenState extends State<TermsAndConditionsScreen> {
   bool isAccepted = false;
 
   @override
@@ -117,7 +122,9 @@ class _TermsAndConditions extends State<TermsAndConditions> {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const UserRegistrationScreen(),
+                                  builder: (context) => UserRegistrationScreen(
+                                    email: widget.email,
+                                  ),
                                 ),
                               );
                             }
@@ -187,4 +194,23 @@ For any inquiries, please contact VerdantBank Customer Support at support@Verdan
 
 By using your VerdantBank Savings Account, you acknowledge that you have read, understood, and agreed to these Terms and Conditions.
 ''';
+}
+
+class SavingsAccountScreen extends StatefulWidget {
+  final String email;
+
+  const SavingsAccountScreen({
+    Key? key,
+    required this.email,
+  }) : super(key: key);
+
+  @override
+  State<SavingsAccountScreen> createState() => _SavingsAccountScreenState();
+}
+
+class _SavingsAccountScreenState extends State<SavingsAccountScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Container(); // Placeholder for the actual implementation
+  }
 }

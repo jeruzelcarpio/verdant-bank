@@ -6,7 +6,12 @@ import 'package:permission_handler/permission_handler.dart'; // Add this import
 import 'package:verdantbank/alixScreens/identification_details_screen.dart';
 
 class IdVerificationScreen extends StatefulWidget {
-  const IdVerificationScreen({super.key});
+  final String email;
+
+  const IdVerificationScreen({
+    super.key, 
+    required this.email,
+  });
 
   @override
   State<IdVerificationScreen> createState() => _IdVerificationScreenState();
@@ -445,7 +450,11 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const IdentificationDetailsScreen(),
+                                  builder: (context) => IdentificationDetailsScreen(
+                                    email: widget.email,
+                                    idType: selectedIdType!,
+                                    idImagePath: _capturedImage?.path,
+                                  ),
                                 ),
                               );
                             }

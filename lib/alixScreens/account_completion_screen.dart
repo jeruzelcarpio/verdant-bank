@@ -1,9 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/signIn_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 
-class AccountCompletionScreen extends StatelessWidget {
-  const AccountCompletionScreen({super.key});
+class AccountCompletionScreen extends StatefulWidget {
+  final String email;
+
+  const AccountCompletionScreen({
+    Key? key,
+    required this.email,
+  }) : super(key: key);
+
+  @override
+  State<AccountCompletionScreen> createState() => _AccountCompletionScreenState();
+}
+
+class _AccountCompletionScreenState extends State<AccountCompletionScreen> {
+  bool _isProcessing = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _finalizeAccountSetup();
+  }
+  
+  // Generate a unique account number that doesn't exist in Firestore
+  Future<String> _generateUniqueAccountNumber() async {
+    final Random random = Random();
+    bool isUnique = false;
+    String accNumber = '';
+    
+    while (!isUnique) {
+      // Generate a random number in the format "XXXX XXX XXXX"
+      final part1 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
+      final part2 = (100 + random.nextInt(900)).toString();   // 100-999
+      final part3 = (1000 + random.nextInt(9000)).toString(); // 1000-9999
+      
+      accNumber = "$part1 $part2 $part3";
+      
+      // Check if this account number already exists
+      final QuerySnapshot query = await FirebaseFirestore.instance
+          .collection('accounts')
+          .where('accNumber', isEqualTo: accNumber)
+          .limit(1)
+          .get();
+      
+      if (query.docs.isEmpty) {
+        isUnique = true;
+      }
+    }
+    
+    return accNumber;
+  }
+  
+  // Add account number and balance to Firestore
+  Future<void> _finalizeAccountSetup() async {
+    try {
+      // Generate a unique account number
+      final String accountNumber = await _generateUniqueAccountNumber();
+      
+      // Update the user's document with the account number and initial balance
+      await FirebaseFirestore.instance
+          .collection('accounts')
+          .doc(widget.email)
+          .update({
+            'accNumber': accountNumber,
+            'accBalance': 0.0,
+            'registrationCompleted': true,
+          });
+          
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    } catch (e) {
+      print('Error finalizing account setup: $e');
+      // Continue showing the completion screen even if this fails
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

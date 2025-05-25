@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/savings_account_screen.dart';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final String email;
-  const VerifyEmailScreen({super.key, required this.email});
+  final String? userId;
+
+  const VerifyEmailScreen({
+    Key? key,
+    required this.email,
+    this.userId,
+  }) : super(key: key);
 
   @override
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -16,6 +26,135 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     (index) => TextEditingController(),
   );
 
+  bool _isLoading = false;
+  bool _isSending = false;
+  String? _verificationCode;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _sendVerificationCode();
+  }
+
+  String _generateVerificationCode() {
+    final random = Random();
+    return List.generate(6, (_) => random.nextInt(10)).join();
+  }
+
+  Future<void> _sendVerificationCode() async {
+    if (_isSending) return;
+
+    setState(() {
+      _isSending = true;
+      _errorMessage = null;
+    });
+
+    try {
+      _verificationCode = _generateVerificationCode();
+
+      await FirebaseFirestore.instance
+          .collection('verification_codes')
+          .doc(widget.email)
+          .set({
+        'code': _verificationCode,
+        'created_at': FieldValue.serverTimestamp(),
+        'expires_at': DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
+      });
+
+      print('Verification code for ${widget.email}: $_verificationCode');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code: $_verificationCode (for development only)'),
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to send verification code. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendEmail(String code) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('sendVerificationEmail');
+      await callable.call({
+        'email': widget.email,
+        'code': code,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Code sent to ${widget.email}: $code'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to send email. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    if (_isLoading) return;
+
+    final enteredCode = _controllers.map((controller) => controller.text).join();
+
+    if (enteredCode.length < 6) {
+      setState(() {
+        _errorMessage = 'Please enter all 6 digits';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      if (_verificationCode == enteredCode) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SavingsAccountScreen(
+                email: widget.email,
+              ),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Invalid verification code. Please try again.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred. Please try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,9 +165,6 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Keep the same progress bar as GettingStartedScreen but update active state
-              // ...progress bar code...
-
               const SizedBox(height: 48),
               const Text(
                 'Verify Email Address',
@@ -96,19 +232,35 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   ),
                 ),
               ),
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.redAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               const SizedBox(height: 24),
               TextButton.icon(
-                onPressed: () {
-                  // Handle resend code
-                },
-                icon: const Icon(
-                  Icons.send,
-                  color: AppColors.lighterGreen,
-                  size: 18,
-                ),
-                label: const Text(
-                  'Resend Verification Code',
-                  style: TextStyle(
+                onPressed: _isSending ? null : _sendVerificationCode,
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: AppColors.lighterGreen,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.send,
+                        color: AppColors.lighterGreen,
+                        size: 18,
+                      ),
+                label: Text(
+                  _isSending ? 'Sending...' : 'Resend Verification Code',
+                  style: const TextStyle(
                     color: AppColors.lighterGreen,
                     fontSize: 14,
                   ),
@@ -145,18 +297,20 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                           borderRadius: BorderRadius.circular(40),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                            builder: (context) => const SavingsAccountScreen(),
+                      onPressed: _isLoading ? null : _verifyCode,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: AppColors.darkGreen,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Next',
+                              style: TextStyle(color: AppColors.darkGreen),
                             ),
-                        );
-                        },
-                      child: const Text(
-                        'Next',
-                        style: TextStyle(color: AppColors.darkGreen),
-                      ),
                     ),
                   ),
                 ],

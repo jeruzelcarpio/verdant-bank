@@ -1,0 +1,57 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "verdant-bank-4d33a",
+          "appId": "1:955185196658:android:954508c22a1f8570765ceb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "verdant-bank-4d33a",
+          "appId": "1:955185196658:ios:17be1f358fd50331765ceb",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "verdant-bank-4d33a",
+          "appId": "1:955185196658:ios:17be1f358fd50331765ceb",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "verdant-bank-4d33a",
+          "configurations": {
+            "android": "1:955185196658:android:954508c22a1f8570765ceb",
+            "ios": "1:955185196658:ios:17be1f358fd50331765ceb",
+            "macos": "1:955185196658:ios:17be1f358fd50331765ceb",
+            "web": "1:955185196658:web:26c195054e70430e765ceb",
+            "windows": "1:955185196658:web:cd49334ffe1eb797765ceb"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

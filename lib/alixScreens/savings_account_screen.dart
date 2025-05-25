@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/terms_and_conditions.dart';
 
-class SavingsAccountScreen extends StatelessWidget {
-  const SavingsAccountScreen({super.key});
+class SavingsAccountScreen extends StatefulWidget {
+  final String email; // Add this
+  
+  const SavingsAccountScreen({
+    Key? key, 
+    required this.email,
+  }) : super(key: key);
+  
+  @override
+  State<SavingsAccountScreen> createState() => _SavingsAccountScreenState();
+}
 
+class _SavingsAccountScreenState extends State<SavingsAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,7 +183,9 @@ class SavingsAccountScreen extends StatelessWidget {
                   Navigator.push(
                   context,
                   MaterialPageRoute(
-                  builder: (context) => const TermsAndConditions(),
+                  builder: (context) => TermsAndConditionsScreen(
+                    email: widget.email, // Or however you're getting the email in this screen
+                  ),
                   ),
                   );
                   },
