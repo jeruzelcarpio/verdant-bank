@@ -3,6 +3,7 @@ import 'package:verdantbank/theme/colors.dart';
 import 'package:verdantbank/alixScreens/verify_email_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:verdantbank/alixScreens/liveness_detection_screen.dart'; // Import the LivenessDetectionScreen
 
 class GettingStartedScreen extends StatefulWidget {
   const GettingStartedScreen({super.key});
@@ -201,8 +202,32 @@ class _GettingStartedScreenState extends State<GettingStartedScreen> {
                             vertical: 16,
                           ),
                         ),
-                        onPressed: () {
-                          // Handle liveness detection
+                        onPressed: () async {
+                          final email = _emailController.text.trim();
+                          if (email.isEmpty) {
+                            setState(() {
+                              _errorMessage = 'Please enter an email address';
+                            });
+                            return;
+                          }
+                          
+                          // Navigate to liveness detection screen
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LivenessDetectionScreen(
+                                email: email,
+                              ),
+                            ),
+                          );
+                          
+                          // If verification was successful, visually update the progress indicators
+                          if (result == true) {
+                            setState(() {
+                              // Update UI to show verification is complete
+                              // You might want to update your progress indicators here
+                            });
+                          }
                         },
                         child: const Text('Enter Test'),
                       ),
