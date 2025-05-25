@@ -517,6 +517,7 @@ class _PayBillSlideConfirmPageState extends State<PayBillSlideConfirmPage> {
                   _processPayment();
                 }
               },
+              info: {},
             ),
           ],
         ),

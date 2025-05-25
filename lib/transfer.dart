@@ -120,21 +120,79 @@ class TransferWidget extends StatefulWidget {
   _TransferWidgetState createState() => _TransferWidgetState();
 }
 
-class _TransferWidgetState extends State<TransferWidget> {
+class _TransferWidgetState extends State<TransferWidget> with SingleTickerProviderStateMixin {
   final TextEditingController accountNumberController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
   final TextEditingController remarksController = TextEditingController();
+  late AnimationController _slideController;
+  late Animation<Offset> _slideAnimation;
+  Map<String, String>? _confirmationInfo;
 
   String? _numberErrorText;
   bool _showConfirmationSlider = false;
   double _sliderValue = 0.0;
   bool _isTransactionInProgress = false; // Flag to prevent double execution
 
+  @override
+  void initState() {
+    super.initState();
+    _slideController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 350),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 1), // Start off-screen (bottom)
+      end: Offset(0, 0),   // End at original position
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _slideController.dispose();
+    super.dispose();
+  }
   // Method to show the confirmation slider
-  void _showSlideToConfirm() {
+  void _showSlideToConfirm() async {
+    if (accountNumberController.text.isEmpty || amountController.text.isEmpty) {
+      _showErrorDialog("Please enter both account number and amount.");
+      return;
+    }
+
+    final recipientQuery = firestore.FirebaseFirestore.instance
+        .collection('accounts')
+        .where('accNumber', isEqualTo: accountNumberController.text);
+
+    final recipientSnapshot = await recipientQuery.get();
+
+    if (recipientSnapshot.docs.isEmpty) {
+      _showErrorDialog("User not recognized.");
+      return;
+    }
+
+    final recipientData = recipientSnapshot.docs.first.data();
+    final recipientName = '${recipientData['accFirstName'] ?? ''} ${recipientData['accLastName'] ?? ''}';
+
     setState(() {
+      _confirmationInfo = {
+        'SOURCE': widget.account.accNumber,
+        'DESTINATION': recipientName,
+        'TRANSFER AMOUNT': '₱${amountController.text}',
+      };
       _showConfirmationSlider = true;
-      _sliderValue = 0.0; // Reset slider value when showing
+      _sliderValue = 0.0;
+    });
+    _slideController.forward();
+  }
+
+
+  void _hideSlideToConfirm() {
+    _slideController.reverse().then((_) {
+      setState(() {
+        _showConfirmationSlider = false;
+      });
     });
   }
 
@@ -162,7 +220,7 @@ class _TransferWidgetState extends State<TransferWidget> {
       return;
     }
 
-    if(accountNumberController.text.isEmpty) {
+    if (accountNumberController.text.isEmpty) {
       _showErrorDialog("Please enter a valid account number.");
       setState(() {
         _isTransactionInProgress = false;
@@ -170,7 +228,7 @@ class _TransferWidgetState extends State<TransferWidget> {
       return;
     }
 
-    if(accountNumberController.text == widget.account.accNumber) {
+    if (accountNumberController.text == widget.account.accNumber) {
       _showErrorDialog("You cannot transfer to your own account.");
       setState(() {
         _isTransactionInProgress = false;
@@ -179,7 +237,6 @@ class _TransferWidgetState extends State<TransferWidget> {
     }
 
     try {
-      // Query recipient account
       final recipientQuery = firestore.FirebaseFirestore.instance
           .collection('accounts')
           .where('accNumber', isEqualTo: accountNumberController.text);
@@ -190,7 +247,7 @@ class _TransferWidgetState extends State<TransferWidget> {
         _showErrorDialog("User not recognized.");
         setState(() {
           _isTransactionInProgress = false;
-          _showConfirmationSlider = false; // Hide the slider
+          // Do NOT hide the slider here
         });
         return;
       }
@@ -363,188 +420,209 @@ class _TransferWidgetState extends State<TransferWidget> {
         centerTitle: true,
       ),
       body: SafeArea(
-        child:
-        SingleChildScrollView(
-          child:
-          Stack(
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (_showConfirmationSlider) {
+              _hideSlideToConfirm();
+            }
+          },
+          child: Stack(
             children: [
-              Padding(
-                padding: EdgeInsets.all(40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'SOURCE',
-                      style: TextStyle(
-                        color: AppColors.yellowGold,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+              SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: 180),
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SOURCE',
+                        style: TextStyle(
+                          color: AppColors.yellowGold,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                    CardIcon(
-                      savingAccountNum: widget.account.accNumber,
-                      accountBalance: widget.account.accBalance,
-                    ),
-                    SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: AppColors.green,
+                      CardIcon(
+                        savingAccountNum: widget.account.accNumber,
+                        accountBalance: widget.account.accBalance,
                       ),
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DESTINATION',
-                              style: TextStyle(
-                                color: AppColors.yellowGold,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(height: 30),
-                            TextField(
-                              controller: accountNumberController,
-                              style: TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                contentPadding: EdgeInsets.all(20),
-                                hintText: 'Account No.',
-                                hintStyle: TextStyle(color: AppColors.lighterGreen),
-                                errorText: _numberErrorText,
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                      SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.green,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'DESTINATION',
+                                style: TextStyle(
+                                  color: AppColors.yellowGold,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
                                 ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.green,
                               ),
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                              ],
-                            ),
-                            SizedBox(height: 30),
-                            TextField(
-                              controller: amountController,
-                              style: TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                contentPadding: EdgeInsets.all(20),
-                                hintText: 'Amount',
-                                hintStyle: TextStyle(color: AppColors.lighterGreen),
-                                errorText: _numberErrorText,
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                  borderSide: BorderSide(color: Color(0xFFC1FD52)),
-                                ),
-                                filled: true,
-                                fillColor: AppColors.green,
-                              ),
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                              ],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Remarks',
-                              style: TextStyle(
-                                color: AppColors.lighterGreen,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            SizedBox(
-                              height: 88,
-                              child: TextField(
-                                controller: remarksController,
+                              SizedBox(height: 30),
+                              TextField(
+                                controller: accountNumberController,
                                 style: TextStyle(color: Colors.white),
                                 decoration: InputDecoration(
-                                  counterText: "",
+                                  contentPadding: EdgeInsets.all(20),
+                                  hintText: 'Account No.',
+                                  hintStyle: TextStyle(color: AppColors.lighterGreen),
+                                  errorText: _numberErrorText,
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(30),
                                     borderSide: BorderSide(color: Color(0xFFC1FD52)),
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(30),
                                     borderSide: BorderSide(color: Color(0xFFC1FD52)),
                                   ),
                                   filled: true,
                                   fillColor: AppColors.green,
                                 ),
-                                keyboardType: TextInputType.multiline,
-                                maxLines: 4,
-                                maxLength: 256,
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                ],
                               ),
-                            ),
-                          ],
+                              SizedBox(height: 30),
+                              TextField(
+                                controller: amountController,
+                                style: TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  contentPadding: EdgeInsets.all(20),
+                                  hintText: 'Amount',
+                                  hintStyle: TextStyle(color: AppColors.lighterGreen),
+                                  errorText: _numberErrorText,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                    borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                  ),
+                                  filled: true,
+                                  fillColor: AppColors.green,
+                                ),
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Remarks',
+                                style: TextStyle(
+                                  color: AppColors.lighterGreen,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              SizedBox(
+                                height: 88,
+                                child: TextField(
+                                  controller: remarksController,
+                                  style: TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    counterText: "",
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide(color: Color(0xFFC1FD52)),
+                                    ),
+                                    filled: true,
+                                    fillColor: AppColors.green,
+                                  ),
+                                  keyboardType: TextInputType.multiline,
+                                  maxLines: 4,
+                                  maxLength: 256,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.lightGreen,
-                              side: BorderSide(color: AppColors.lighterGreen),
-                            ),
-                            child: Text(
-                              "Back",
-                              style: TextStyle(
-                                color: AppColors.lighterGreen,
-                                fontSize: 14,
+                      SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.lightGreen,
+                                side: BorderSide(color: AppColors.lighterGreen),
+                              ),
+                              child: Text(
+                                "Back",
+                                style: TextStyle(
+                                  color: AppColors.lighterGreen,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _showSlideToConfirm,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.lighterGreen,
-                            ),
-                            child: Text(
-                              "Transfer",
-                              style: TextStyle(
-                                color: AppColors.darkGreen,
-                                fontSize: 14,
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _showSlideToConfirm,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.lighterGreen,
+                              ),
+                              child: Text(
+                                "Transfer",
+                                style: TextStyle(
+                                  color: AppColors.darkGreen,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (_showConfirmationSlider)
                 Positioned(
-                  bottom: 0,
                   left: 0,
                   right: 0,
-                  child: SlideToConfirm(
-                    sliderValue: _sliderValue,
-                    onChanged: (value) {
-                      setState(() {
-                        _sliderValue = value;
-                      });
-                      if (value >= 0.99) {
-                        _executeTransferTransaction();
-                      }
+                  bottom: 0,
+                  child: AnimatedBuilder(
+                    animation: _slideController,
+                    builder: (context, child) {
+                      return SlideTransition(
+                        position: _slideAnimation,
+                        child: Material(
+                          color: Colors.transparent,
+                          elevation: 8,
+                          child: SlideToConfirm(
+                            sliderValue: _sliderValue,
+                            onChanged: (value) {
+                              setState(() {
+                                _sliderValue = value;
+                              });
+                              if (value >= 0.99) {
+                                _executeTransferTransaction();
+                                _hideSlideToConfirm();
+                              }
+                            },
+                            info: _confirmationInfo ?? {},
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ),
