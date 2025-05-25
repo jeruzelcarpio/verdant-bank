@@ -57,7 +57,7 @@ class _FlipCardSectionState extends State<FlipCardSection> {
               ),
               const SizedBox(width: 8),
               Text(
-                _isFlipped ? "Show Card" : "Show Account",
+                _isFlipped ? "Flip Card" : "Flip Card",
                 style: const TextStyle(
                   color: AppColors.lighterGreen,
                   fontSize: 14,
