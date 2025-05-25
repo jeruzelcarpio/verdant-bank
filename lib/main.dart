@@ -191,7 +191,7 @@ class _HomePageState extends State<HomePage> {
         context,
         MaterialPageRoute(
           builder: (context) => PaybillsPage(
-            userAccount: account,
+            account: account,
             onUpdate: _updateAccount,
           ),
         ),
@@ -214,7 +214,12 @@ class _HomePageState extends State<HomePage> {
     } else if (action == 'Savings') {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => SavingsPage()),
+        MaterialPageRoute(
+          builder: (context) => SavingsPage(
+            account: account,
+            onUpdate: _updateAccount,
+          ),
+        ),
       );
     } else if (action == 'Transactions') {
       Navigator.push(
@@ -275,10 +280,13 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.credit_card,
-                            size: 16,
-                            color: AppColors.milk,
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Image.asset(
+                              'assets/homepage_logo.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -519,3 +527,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

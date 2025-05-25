@@ -8,6 +8,7 @@ class SlideToConfirm extends StatefulWidget {
   final VoidCallback? onConfirm;
   final Map<String, String> info;
 
+
   const SlideToConfirm({
     Key? key,
     required this.sliderValue,

@@ -8,7 +8,11 @@ import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore; // Aliased import
+import 'package:verdantbank/api/firestore.dart';
+import 'package:verdantbank/api/send_otp.dart';
+import 'package:verdantbank/transfer_other_banks.dart';
+
 
 class TransferPage extends StatefulWidget {
   final Account account;
@@ -23,16 +27,28 @@ class TransferPage extends StatefulWidget {
 
 class _TransferPageState extends State<TransferPage> {
   void _openTransferWidget(String transferType) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TransferWidget(
-          account: widget.account,
-          transferType: transferType,
-          onUpdate: widget.onUpdate,
+    if (transferType == "Other Banks") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TransferOtherBanksPage(
+            account: widget.account,
+            onUpdate: widget.onUpdate,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TransferWidget(
+            account: widget.account,
+            transferType: transferType,
+            onUpdate: widget.onUpdate,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -132,6 +148,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
   Map<String, String>? _confirmationInfo;
   String? _lastRecipientName;
 
+
   String? _numberErrorText;
   bool _showConfirmationSlider = false;
   double _sliderValue = 0.0;
@@ -152,6 +169,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
       curve: Curves.easeOut,
     ));
   }
+
 
   @override
   void dispose() {
@@ -256,6 +274,8 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
         return;
       }
 
+      final otp = generateOtp();
+      await sendOtpToEmail(widget.account.accEmail, otp);
       // Extract recipient details
       final recipientData = recipientSnapshot.docs.first.data();
       final recipientFirstName = recipientData['accFirstName'] ?? 'Unknown';
@@ -275,9 +295,8 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
         context,
         MaterialPageRoute(
           builder: (context) => OTPConfirmationScreen(
-            phoneNumber: widget.account.accPhoneNum,
-            otpCode: "123456", // Example OTP code
-              onConfirm: () async {
+            email: widget.account.accEmail,
+              onSuccess: () async {
                 try {
                   final recipientAccountRef = recipientSnapshot.docs.first.reference;
 
@@ -330,8 +349,12 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
                   });
                 }
               },
-            onResend: () {
-              print("OTP Resent");
+            onResend: () async {
+              final newOtp = generateOtp();
+              await sendOtpToEmail(widget.account.accEmail, newOtp);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Your OTP code is: $newOtp')),
+              );
             },
           ),
         ),
@@ -601,7 +624,12 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
                                 decoration: InputDecoration(
                                   contentPadding: EdgeInsets.all(20),
                                   hintText: 'Account No.',
-                                  hintStyle: TextStyle(color: AppColors.lighterGreen),
+                                  hintStyle: TextStyle(
+                                    color: AppColors.lighterGreen,
+                                    fontFamily: 'WorkSans',
+                                    fontSize: 14,
+                                  ),
+
                                   errorText: _numberErrorText,
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),
@@ -626,7 +654,12 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
                                 decoration: InputDecoration(
                                   contentPadding: EdgeInsets.all(20),
                                   hintText: 'Amount',
-                                  hintStyle: TextStyle(color: AppColors.lighterGreen),
+                                  hintStyle: TextStyle(
+                                    color: AppColors.lighterGreen,
+                                    fontFamily: 'WorkSans',
+                                    fontSize: 14,
+                                  ),
+
                                   errorText: _numberErrorText,
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(30),
