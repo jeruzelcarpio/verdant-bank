@@ -41,13 +41,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final String email = _emailController.text.trim();
       final String password = _passwordController.text;
-      
+
       // Validate inputs
       if (email.isEmpty) {
         _setErrorMessage('Please enter your email');
         return;
       }
-      
+
       if (password.isEmpty) {
         _setErrorMessage('Please enter your password');
         return;
@@ -67,31 +67,31 @@ class _LoginScreenState extends State<LoginScreen> {
       // Get the stored hashed password
       final userData = userDoc.data();
       final securityData = userData?['security'];
-      
+
       if (securityData == null) {
         _setErrorMessage('Account setup incomplete. Please register again.');
         return;
       }
-      
+
       final storedPassword = securityData['password'];
-      
+
       // Hash the entered password and compare
       final hashedEnteredPassword = _secureHash(password);
-      
+
       if (storedPassword != hashedEnteredPassword) {
         _setErrorMessage('Incorrect password');
         return;
       }
 
       // If we get here, login is successful
-      
+
       // Save user info to shared preferences for session management
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_email', email);
       await prefs.setBool('is_logged_in', true);
       await prefs.setString('user_first_name', userData?['firstName'] ?? '');
       await prefs.setString('user_last_name', userData?['lastName'] ?? '');
-      
+
       // Save biometric preference if selected
       if (_isBiometricEnabled) {
         await prefs.setBool('biometric_enabled', true);
@@ -99,20 +99,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Use the UserSession class:
       await UserSession().saveUserEmail(email);
-      
+
       // Replace this navigation code:
       // Navigator.pushNamedAndRemoveUntil(
       //   context,
       //   '/home',
       //   (route) => false,
       // );
-      
+
       // With this to force a complete app rebuild:
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => AccountLoader()),
-          (route) => false,
+              (route) => false,
         );
       }
     } catch (e) {
@@ -216,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              
+
               // Display error message if there is one
               if (_errorMessage != null)
                 Padding(
@@ -230,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-              
+
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -275,19 +275,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 onPressed: _isLoading ? null : _login,
-                child: _isLoading 
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: AppColors.darkGreen,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      'Log In',
-                      style: TextStyle(fontSize: 16),
-                    ),
+                child: _isLoading
+                    ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: AppColors.darkGreen,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text(
+                  'Log In',
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
               const SizedBox(height: 24),
               Center(

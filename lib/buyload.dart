@@ -8,12 +8,10 @@ import 'package:verdantbank/models/account.dart';
 import 'package:verdantbank/components/card.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'theme/colors.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
-
 import 'package:verdantbank/api/send_otp.dart';
-
 import 'main.dart'; // Import userAccount
+import 'package:verdantbank/components/slide_to_confirm.dart';
 
 class BuyLoadPage extends StatefulWidget {
   final Account userAccount; // Add userAccount parameter
@@ -34,6 +32,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
   bool _showConfirmationSlider = false;
   double _sliderValue = 0.0;
   bool _isTransactionInProgress = false;
+  Map<String, String>? _confirmationInfo;
 
   // Philippine mobile number validation
   bool _isValidPhilippineNumber(String? number) {
@@ -61,10 +60,18 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       return;
     }
     setState(() {
+      _confirmationInfo = {
+        'SOURCE': widget.userAccount.accNumber,
+        'MOBILE': _mobileNumberController.text,
+        'NETWORK': selectedNetwork!,
+        'AMOUNT': '₱${amount.toStringAsFixed(2)}',
+      };
       _showConfirmationSlider = true;
       _sliderValue = 0.0;
     });
   }
+
+
 
   double? _getSelectedAmount() {
     if (selectedAmount != null) {
@@ -124,21 +131,27 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
       // Call the update callback to refresh parent widgets
       if (widget.onUpdate != null) widget.onUpdate!();
 
+      final otp = generateOtp();
+      await sendOtpToEmail(widget.userAccount.accEmail, otp);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => OTPConfirmationScreen(
-          email: widget.userAccount.accEmail,
-          onSuccess: () async {
-            Navigator.pop(context);
-            _navigateToReceipt(amount);
-          },
-          onResend: () async {
-            final newOtp = generateOtp();
-            await sendOtpToEmail(widget.userAccount.accEmail, newOtp);
-          },
-
+      // Navigate to OTP confirmation
+        Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPConfirmationScreen(
+            email: widget.userAccount.accEmail,
+            onSuccess: () async {
+              Navigator.pop(context);
+              _navigateToReceipt(amount);
+            },
+            onResend: () async {
+              final newOtp = generateOtp();
+              await sendOtpToEmail(widget.userAccount.accEmail, newOtp);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("New OTP code sent")),
+              );
+            },
+          ),
         ),
       ).then((_) {
         setState(() {
@@ -228,6 +241,10 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
     });
     if (value >= 0.99) {
       _executeLoadTransaction();
+      setState(() {
+        _showConfirmationSlider = false;
+        _sliderValue = 0.0;
+      });
     }
   }
 
@@ -280,7 +297,7 @@ class _BuyLoadPageState extends State<BuyLoadPage> {
                 child: SlideToConfirm(
                   sliderValue: _sliderValue,
                   onChanged: _handleSliderChange,
-                  info: {},
+                  info: _confirmationInfo ?? {},
                 ),
               ),
           ],

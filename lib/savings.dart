@@ -14,8 +14,7 @@ class SavingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AlkansyaScreen();
-
+    return AlkansyaScreen(account: account, onUpdate: onUpdate);
   }
 }
 
@@ -403,7 +402,6 @@ class _AlkansyaScreenState extends State<AlkansyaScreen> {
       _showWarningDialog();
     } else {
       _confirmDeletePlan(index);
-      _deletePlanFromFirestore(plan.name);
     }
   }
 

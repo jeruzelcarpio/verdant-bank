@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:verdantbank/theme/colors.dart';
@@ -68,7 +69,7 @@ class AccountLoader extends StatelessWidget {
             home: SignInScreen(),
           );
         }
-        
+
         return FutureBuilder<Account?>(
           future: fetchAccount(emailSnapshot.data!),
           builder: (context, snapshot) {
@@ -80,13 +81,13 @@ class AccountLoader extends StatelessWidget {
                 ),
               );
             }
-            
+
             if (!snapshot.hasData || snapshot.data == null) {
               return MaterialApp(
                 home: SignInScreen(),
               );
             }
-            
+
             return MyApp(userAccount: snapshot.data!);
           },
         );
@@ -115,7 +116,7 @@ Future<Account?> fetchAccount(String userAccountEmail) async {
 // Update MyApp class to accept a userAccount parameter
 class MyApp extends StatelessWidget {
   final Account userAccount;
-  
+
   const MyApp({Key? key, required this.userAccount}) : super(key: key);
 
   @override
@@ -126,7 +127,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
-      // Use the HomePage as the home screen instead of SignInScreen 
+      // Use the HomePage as the home screen instead of SignInScreen
       // since we already have a user account
       home: HomePage(userAccount: userAccount),
       routes: {
@@ -147,7 +148,7 @@ class MyApp extends StatelessWidget {
 // Update HomePage to accept a userAccount parameter
 class HomePage extends StatefulWidget {
   final Account userAccount;
-  
+
   const HomePage({super.key, required this.userAccount});
 
   @override

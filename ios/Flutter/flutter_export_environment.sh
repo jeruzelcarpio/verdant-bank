@@ -1,9 +1,9 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=/Users/chris/development/flutter"
-export "FLUTTER_APPLICATION_PATH=/Users/chris/Downloads/Programming Projects/verdant-bank"
+export "FLUTTER_ROOT=C:\Users\My PC\flutter\src\flutter"
+export "FLUTTER_APPLICATION_PATH=C:\Users\My PC\AndroidStudioProjects\verdant-bank"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
-export "FLUTTER_TARGET=lib/main.dart"
+export "FLUTTER_TARGET=lib\main.dart"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"
 export "FLUTTER_BUILD_NUMBER=1"
