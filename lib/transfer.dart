@@ -8,6 +8,7 @@ import 'package:verdantbank/components/transaction_receipt.dart';
 import 'package:verdantbank/components/authentication_otp.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'theme/colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 
 class TransferPage extends StatefulWidget {
   final Account account;
@@ -200,7 +201,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
   }
 
   // Execute transfer transaction
-  void _executeTransferTransaction() {
+  void _executeTransferTransaction() async {
     if (_isTransactionInProgress) return; // Prevent multiple executions
 
     setState(() {
@@ -344,7 +345,7 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
       setState(() {
         _isTransactionInProgress = false;
       });
-    });
+    }
   }
 
   // Navigate to the transaction receipt screen
@@ -409,6 +410,122 @@ class _TransferWidgetState extends State<TransferWidget> with SingleTickerProvid
         ],
       ),
     );
+  }
+
+  // Method to check recipient details
+  Future<void> _checkRecipient(String accNumber) async {
+    if (accNumber.isNotEmpty) {
+      final recipientQuery = firestore.FirebaseFirestore.instance
+          .collection('accounts')
+          .where('accNumber', isEqualTo: accNumber);
+
+      try {
+        final recipientSnapshot = await recipientQuery.get();
+
+        if (recipientSnapshot.docs.isNotEmpty) {
+          // Recipient found, handle accordingly
+        } else {
+          // Recipient not found
+        }
+      } catch (e) {
+        // Error handling
+      }
+    }
+  }
+
+  // Process the transfer - ensure this method is async
+  Future<void> _processTransfer() async {
+    double? amount = double.tryParse(amountController.text);
+    if (amount == null || amount <= 0) {
+      _showErrorDialog("Please enter a valid amount.");
+      return;
+    }
+    if (amount > widget.account.accBalance) {
+      _showErrorDialog("Amount exceeds available balance.");
+      return;
+    }
+
+    if (accountNumberController.text.isEmpty) {
+      _showErrorDialog("Please enter a valid account number.");
+      return;
+    }
+
+    if (accountNumberController.text == widget.account.accNumber) {
+      _showErrorDialog("You cannot transfer to your own account.");
+      return;
+    }
+
+    try {
+      final recipientQuery = firestore.FirebaseFirestore.instance
+          .collection('accounts')
+          .where('accNumber', isEqualTo: accountNumberController.text);
+
+      final recipientSnapshot = await recipientQuery.get();
+
+      if (recipientSnapshot.docs.isEmpty) {
+        _showErrorDialog("User not recognized.");
+        return;
+      }
+
+      // Extract recipient details
+      final recipientData = recipientSnapshot.docs.first.data();
+      final recipientFirstName = recipientData['accFirstName'] ?? 'Unknown';
+      final recipientLastName = recipientData['accLastName'] ?? 'Unknown';
+      final recipientName = '$recipientFirstName $recipientLastName';
+      _lastRecipientName = recipientName;
+
+      if (recipientName.trim() == 'Unknown Unknown') {
+        _showErrorDialog("Recipient name is missing in the account details.");
+        return;
+      }
+
+      // Proceed with the transaction
+      final recipientAccountRef = recipientSnapshot.docs.first.reference;
+
+      // Update balances atomically
+      await firestore.FirebaseFirestore.instance.runTransaction((transaction) async {
+        final senderAccountQuery = await firestore.FirebaseFirestore.instance
+            .collection('accounts')
+            .where('accNumber', isEqualTo: widget.account.accNumber)
+            .get();
+
+        if (senderAccountQuery.docs.isEmpty) {
+          throw Exception("Sender account not found.");
+        }
+
+        final senderAccountRef = senderAccountQuery.docs.first.reference;
+
+        transaction.update(senderAccountRef, {
+          'accBalance': firestore.FieldValue.increment(-amount),
+        });
+
+        transaction.update(recipientAccountRef, {
+          'accBalance': firestore.FieldValue.increment(amount),
+        });
+      });
+
+      // Now create the transaction document and get its reference
+      final transactionRef = await firestore.FirebaseFirestore.instance.collection('transactions').add({
+        'type': 'Transfer',
+        'sourceAccount': widget.account.accNumber,
+        'destinationAccount': accountNumberController.text,
+        'accounts': [widget.account.accNumber, accountNumberController.text],
+        'dateTime': firestore.FieldValue.serverTimestamp(),
+        'amount': amount,
+        'remarks': remarksController.text,
+      });
+
+      setState(() {
+        widget.account.accBalance -= amount;
+        _sliderValue = 0.0;
+        _showConfirmationSlider = false;
+        widget.onUpdate();
+      });
+
+      _navigateToReceipt(amount, transactionRef.id);
+    } catch (e) {
+      _showErrorDialog("Failed to process transaction: $e");
+    }
   }
 
   @override

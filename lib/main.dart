@@ -111,8 +111,11 @@ Future<Account?> fetchAccount(String userAccountEmail) async {
   return null;
 }
 
+// Update MyApp class to accept a userAccount parameter
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Account userAccount;
+  
+  const MyApp({super.key, required this.userAccount});
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +125,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'WorkSans',
         primarySwatch: Colors.green,
       ),
-      home: HomePage(userAccount: userAccount), // change to SignInScreen() or (userAccount: userAccount) if you want to start with the sign-in screen
+      home: SignInScreen(), // Pass the account to HomePage
       onGenerateRoute: (settings) {
         if (settings.name == '/home') {
           return MaterialPageRoute(
@@ -135,10 +138,11 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-
+// Update HomePage to accept a userAccount parameter
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final Account userAccount;
+  
+  const HomePage({super.key, required this.userAccount});
 
   @override
   _HomePageState createState() => _HomePageState();

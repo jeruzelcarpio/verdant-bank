@@ -657,7 +657,7 @@ class PayBillReceiptPage extends StatelessWidget {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => HomePage(),
+                    builder: (context) => HomePage(userAccount: account), // Use account instead of widget.userAccount
                   ),
                       (route) => false,
                 );
