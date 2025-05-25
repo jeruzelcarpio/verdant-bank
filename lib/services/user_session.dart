@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+// Change this import - AccountLoader is in main.dart
+import 'package:verdantbank/main.dart';
 
 class UserSession {
   static final UserSession _instance = UserSession._internal();
@@ -29,20 +33,35 @@ class UserSession {
     return prefs.getBool('is_logged_in') ?? false;
   }
   
-  // Clear user data on logout
+  // Combined logout method with all functionality
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    
+    // Sign out from Firebase Auth if needed
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      print('Error signing out: $e');
+    }
   }
 
   // Clear specific user data
   Future<void> clearUser() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_email');
+    await prefs.remove('is_logged_in');
     // Remove any other user-related data you might be storing
-    // For example:
-    // await prefs.remove('user_id');
-    // await prefs.remove('user_name');
-    // etc.
   }
+}
+
+// Add this where your logout button is handled
+void handleLogout(BuildContext context) async {
+  await UserSession().logout();
+  
+  // Remove the 'const' keyword here
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (context) => AccountLoader()),
+    (route) => false,
+  );
 }

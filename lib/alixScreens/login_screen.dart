@@ -100,12 +100,19 @@ class _LoginScreenState extends State<LoginScreen> {
       // Use the UserSession class:
       await UserSession().saveUserEmail(email);
       
-      // Navigate to home screen
+      // Replace this navigation code:
+      // Navigator.pushNamedAndRemoveUntil(
+      //   context,
+      //   '/home',
+      //   (route) => false,
+      // );
+      
+      // With this to force a complete app rebuild:
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
+        Navigator.pushAndRemoveUntil(
           context,
-          '/home',
-          (route) => false, // Removes all previous routes
+          MaterialPageRoute(builder: (context) => AccountLoader()),
+          (route) => false,
         );
       }
     } catch (e) {
