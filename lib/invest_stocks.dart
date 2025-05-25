@@ -2,9 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'invest_stocks_market.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class InvestStocksPage extends StatelessWidget {
+class InvestStocksPage extends StatefulWidget {
   const InvestStocksPage({super.key});
+
+  @override
+  State<InvestStocksPage> createState() => _InvestStocksPageState();
+}
+
+class _InvestStocksPageState extends State<InvestStocksPage> {
+  String firstName = '';
+
+  // Fetch the first name from Firestore
+  @override
+  void initState() {
+    super.initState();
+    fetchFirstName();
+  }
+
+  Future<void> fetchFirstName() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('accounts')
+          .doc('iSeVBWRzAhNa10oWUlXd')
+          .get();
+
+      if (doc.exists && doc['accFirstName'] != null) {
+        setState(() {
+          firstName = doc['accFirstName'];
+        });
+      }
+    } catch (e) {
+      print("Error fetching first name: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +48,7 @@ class InvestStocksPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Clickable back button
+              // Back button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -24,17 +56,17 @@ class InvestStocksPage extends StatelessWidget {
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(width: 48), // spacer to balance layout
+                  const SizedBox(width: 48),
                 ],
               ),
               const SizedBox(height: 12),
 
-              // Right-aligned greeting
+              // Greeting
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Hi, Jeff!",
+                    "Hi, ${firstName.isNotEmpty ? firstName : '...'}!",
                     style: GoogleFonts.poppins(
                       fontSize: 24,
                       color: Colors.lightGreenAccent.shade100,
@@ -47,7 +79,9 @@ class InvestStocksPage extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 24),
+              // Chart and investment data UI continues...
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFF001F1A),
@@ -58,7 +92,11 @@ class InvestStocksPage extends StatelessWidget {
                   children: [
                     Text(
                       "PHP 200.00",
-                      style: GoogleFonts.poppins(color: Colors.orangeAccent, fontSize: 24, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.poppins(
+                        color: Colors.orangeAccent,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       "+PHP 0.00 (+0.00%)",
@@ -123,17 +161,21 @@ class InvestStocksPage extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 "Markets Are Up Today",
-                style: GoogleFonts.poppins(color: Colors.orangeAccent, fontWeight: FontWeight.bold),
+                style: GoogleFonts.poppins(
+                    color: Colors.orangeAccent, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMarketPage()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const StockMarketPage()));
                 },
-                child: _marketBox("Top Companies", "+0.03%", "S&P 500", "PHP 5,360.13", false),
+                child: _marketBox(
+                    "Top Companies", "+0.03%", "S&P 500", "PHP 5,360.13", false),
               ),
               const SizedBox(height: 10),
-              _marketBox("Technology", "-7.03%", "Google. Inc", "PHP 5,360.13", true),
+              _marketBox(
+                  "Technology", "-7.03%", "Google. Inc", "PHP 5,360.13", true),
             ],
           ),
         ),

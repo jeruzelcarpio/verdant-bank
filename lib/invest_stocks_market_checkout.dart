@@ -1,7 +1,8 @@
 import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Add this import
+import 'invest_stocks_market.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StockMarketCheckoutPage extends StatelessWidget {
   final String name;
@@ -204,40 +205,89 @@ class StockMarketCheckoutPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB3F584),
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(32),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () async {
-                        // Replace with your actual source account logic
-                        const sourceAccount = "user_account_001";
-                        await FirebaseFirestore.instance
-                            .collection('stock_transactions')
-                            .add({
-                          'sourceAccount': sourceAccount,
-                          'destinationAccount': destinationAccount,
-                          'timestamp': FieldValue.serverTimestamp(),
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Transaction submitted!')),
+                    child: Builder(
+                      builder: (context) {
+                        return ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFB3F584),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          onPressed: () async {
+                            final firestore = FirebaseFirestore.instance;
+                            const accountDocId = 'iSeVBWRzAhNa10oWUlXd';
+
+                            try {
+                              // Get account info
+                              final accountSnapshot = await firestore.collection('accounts').doc(accountDocId).get();
+
+                              if (!accountSnapshot.exists) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Account not found.')),
+                                );
+                                return;
+                              }
+
+                              final accountData = accountSnapshot.data()!;
+                              final accBalance = accountData['accBalance'] ?? 0.0;
+                              final accNumber = accountData['accNumber'] ?? 'N/A';
+                              final parsedPrice = double.tryParse(
+                                price.replaceAll(RegExp(r'[^\d,]'), '').replaceAll(',', '.'),
+                              ) ?? 0.0;
+
+                              if (parsedPrice > accBalance) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Insufficient balance.')),
+                                );
+                                return;
+                              }
+
+                              // Record transaction
+                              await firestore.collection('stock_transactions').add({
+                                'sourceAccount': accNumber,
+                                'destinationAccount': destinationAccount,
+                                'companyName': name,
+                                'merchantName': 'VERDANT BANK',
+                                'timestamp': FieldValue.serverTimestamp(),
+                              });
+
+                              // Update balance
+                              await firestore.collection('accounts').doc(accountDocId).update({
+                                'accBalance': accBalance - parsedPrice,
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Stock purchase successful!')),
+                              );
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (context) => StockMarketPage()),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          },
+                          child: const Text(
+                            "Buy",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
                         );
                       },
-                      child: const Text("Buy",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
+
               ],
             ),
-          ),
-        ],
+            ),
+          ],
       ),
-    );
+      );
   }
 }
 
