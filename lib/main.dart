@@ -267,10 +267,13 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.credit_card,
-                            size: 16,
-                            color: AppColors.milk,
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Image.asset(
+                              'assets/homepage_logo.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(

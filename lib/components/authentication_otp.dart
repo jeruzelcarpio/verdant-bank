@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:verdantbank/theme/colors.dart';
+import 'package:verdantbank/api/send_otp.dart';
 
 class OTPConfirmationScreen extends StatefulWidget {
-  final String phoneNumber;
-  final String otpCode;
-  final VoidCallback onConfirm;
+  final String email;
+  final Future<void> Function() onSuccess;
   final VoidCallback? onResend;
 
   const OTPConfirmationScreen({
     Key? key,
-    required this.phoneNumber,
-    required this.otpCode,
-    required this.onConfirm,
+    required this.email,
+    required this.onSuccess,
     this.onResend,
   }) : super(key: key);
 
@@ -20,11 +19,11 @@ class OTPConfirmationScreen extends StatefulWidget {
 }
 
 class _OTPConfirmationScreenState extends State<OTPConfirmationScreen> {
-  // Add temporary flag to accept any code
-  final bool _temporaryAcceptAnyCode = true;
-  
   final List<TextEditingController> _controllers =
   List.generate(6, (_) => TextEditingController());
+
+  bool _showError = false;
+  String _errorText = "";
 
   String get enteredCode =>
       _controllers.map((controller) => controller.text).join();
@@ -32,39 +31,37 @@ class _OTPConfirmationScreenState extends State<OTPConfirmationScreen> {
   bool get isCodeComplete =>
       _controllers.every((controller) => controller.text.isNotEmpty);
 
-  bool _showError = false;
-
   void _handleInputChange(int index, String value) {
     if (value.isNotEmpty && index < 5) {
       FocusScope.of(context).nextFocus();
     } else if (value.isEmpty && index > 0) {
       FocusScope.of(context).previousFocus();
     }
-    
-    // Reset error state when user types
     if (_showError) {
       setState(() {
         _showError = false;
+        _errorText = "";
       });
     } else {
       setState(() {});
     }
   }
-  
-  void _validateAndProceed() {
+
+  Future<void> _validateAndProceed() async {
     if (!isCodeComplete) {
       setState(() {
         _showError = true;
+        _errorText = "Please fill in all fields.";
       });
       return;
     }
-    
-    // Modified validation to accept any code if flag is enabled
-    if (_temporaryAcceptAnyCode || enteredCode == widget.otpCode) {
-      widget.onConfirm();
+    final isValid = await verifyOtp(widget.email, enteredCode, expiryMinutes);
+    if (isValid) {
+      await widget.onSuccess();
     } else {
       setState(() {
         _showError = true;
+        _errorText = "Invalid or expired OTP. Please try again.";
       });
     }
   }
@@ -120,7 +117,7 @@ class _OTPConfirmationScreenState extends State<OTPConfirmationScreen> {
                             SizedBox(
                               width: constraints.maxWidth * 0.8,
                               child: Text(
-                                "This confirmation code has been sent to the phone number ${widget.phoneNumber}. Please enter the 6 digit code to continue:",
+                                "This confirmation code has been sent to the email ${widget.email}. Please enter the 6 digit code to continue:",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: AppColors.milk,
